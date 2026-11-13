@@ -8,7 +8,7 @@ kotlin = "2.4.21"
 ksp = "2.3.14"
 # Android SDK levels (kept here so every module agrees)
 minSdk = "26"
-compileSdk = "36"
+compileSdk = "37"           # required by current AndroidX releases; targetSdk stays 36
 targetSdk = "36"
 jvmTarget = "17"
 
