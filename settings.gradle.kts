@@ -1,4 +1,5 @@
 pluginManagement {
+    includeBuild("build-logic")
     repositories {
         google {
             content {
@@ -21,3 +22,14 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "posguard"
+
+// Milestone 1 modules. V2/V3 modules (devices, ebt, assess, ebt-simulator)
+// are added when their milestone starts.
+include(
+    ":posguard-core",
+    ":posguard-integrity",
+    ":posguard-ledger",
+    ":posguard-telemetry",
+    ":mock-payment-engine",
+    ":demo-app",
+)
