@@ -190,7 +190,7 @@ Keep these current; they are part of the deliverable:
 ## 15. Milestones
 
 ### M1 — Core protection + outage-safe checkout (start here)
-- [ ] Project setup: modules, version catalog, Apache-2.0 license, CI-friendly Gradle
+- [x] Project setup: modules, version catalog, Apache-2.0 license, CI-friendly Gradle
 - [ ] `posguard-core`: API, verdicts, reason codes, policy config
 - [ ] `posguard-integrity`: overlay, screen capture, accessibility, root/emulator/debugger signals; Play Integrity with real + fake provider
 - [ ] `posguard-ledger`: state machine, idempotency, crash and network recovery, unit tests

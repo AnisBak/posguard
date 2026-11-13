@@ -20,7 +20,19 @@ posguard is an open-source Android toolkit that helps payment-app makers keep ca
 
 ## Status
 
-Milestone 1 is in progress. See [CHANGELOG.md](CHANGELOG.md).
+Milestone 1 is in progress. See [CHANGELOG.md](CHANGELOG.md) and [docs/architecture.md](docs/architecture.md).
+
+## Build from source
+
+Requirements: JDK 17 or newer, and the Android SDK.
+
+```sh
+echo "sdk.dir=/path/to/Android/Sdk" > local.properties
+./gradlew build
+./gradlew :demo-app:installDebug   # Sunrise Market demo (placeholder for now)
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for project rules.
 
 ## License
 
