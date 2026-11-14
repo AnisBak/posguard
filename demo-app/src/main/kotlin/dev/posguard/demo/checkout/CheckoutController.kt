@@ -101,6 +101,12 @@ class CheckoutController(
 
     fun backToShop() = state.update { it.copy(screen = Screen.Shop, busy = false) }
 
+    /** After an approved sale: empty the cart and return to the shop. */
+    fun finishSale() = state.update { it.copy(cart = emptyMap(), screen = Screen.Shop, busy = false) }
+
+    /** Shows a message to the merchant, for example an unexpected error. */
+    fun showBanner(text: String) = state.update { it.copy(banner = text, busy = false) }
+
     // --- Checkout -----------------------------------------------------------------------
 
     /** "Take payment": preflight decides whether the payment screen may open. */
