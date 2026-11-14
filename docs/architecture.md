@@ -1,6 +1,6 @@
 # Architecture
 
-> Status (2026-11-14): `posguard-core`, `posguard-ledger`, and `mock-payment-engine` are implemented and tested. The other modules are shells.
+> Status (2026-11-14): `posguard-core`, `posguard-ledger`, `posguard-telemetry`, and `mock-payment-engine` are implemented and tested. `posguard-integrity` and `demo-app` are next.
 
 ## Principle: wrap, never replace
 
@@ -54,6 +54,10 @@ Dependency direction: every library depends on `posguard-core`, and nothing depe
 ## Ledger (`posguard-ledger`)
 
 Room-backed `TransactionLedger` built with `PosGuardLedger.Builder`. Writes are serialized in-process and use compare-and-set on a version column. `recoverPending()` resolves pending payments by idempotency key, and `LedgerRecoveryWorker` (WorkManager) repeats recovery on reconnect. See [ledger.md](ledger.md).
+
+## Telemetry (`posguard-telemetry`)
+
+`PosGuardTelemetry` is a `GuardEventListener`. Every event is scrubbed before buffering (card numbers, track data, emails, phones, sensitive keys; it fails closed). The buffer is bounded and delivers to pluggable `TelemetrySink`s, removing events only after every sink accepts them. See [event-schema.md](event-schema.md).
 
 ## Mock engine (`mock-payment-engine`)
 
