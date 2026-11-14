@@ -199,7 +199,7 @@ Keep these current; they are part of the deliverable:
 - [x] `mock-payment-engine` with failure modes
 - [x] `demo-app` with Demo controls and "Why blocked" panel; offline
 - [x] Scenarios 1–5 working end to end (verified on API 36 emulator; real-device run pending)
-- [ ] README, architecture, threat model, demo script (first versions); first tagged release
+- [x] README, architecture, threat model, demo script (first versions); first tagged release (v0.1.0, 2026-11-14)
 
 ### M2 — Devices, relay flags, assessment, distribution
 - [ ] `posguard-devices` watchdog (with fake peripherals)
