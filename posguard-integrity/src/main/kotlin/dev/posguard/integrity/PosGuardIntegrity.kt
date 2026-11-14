@@ -22,10 +22,12 @@ public class PosGuardIntegrity private constructor(
     private val context: Context,
     public val config: IntegrityConfig,
     public val touchMonitor: ObscuredTouchMonitor,
+    public val recordingMonitor: ScreenRecordingMonitor,
 ) {
     /** The default signal set, ready for `PosGuard.Builder.signals(...)`. */
     public fun signals(): List<IntegritySignal> = listOf(
         ObscuredTouchSignal(touchMonitor, config),
+        ScreenRecordingSignal(recordingMonitor),
         AccessibilitySignal(context, config),
         DebuggerSignal(context),
         RootEmulatorSignal(),
@@ -34,12 +36,16 @@ public class PosGuardIntegrity private constructor(
     private val lifecycle = object : Application.ActivityLifecycleCallbacks {
         override fun onActivityStarted(activity: Activity) {
             touchMonitor.install(activity.window)
+            recordingMonitor.onStarted(activity)
+        }
+
+        override fun onActivityStopped(activity: Activity) {
+            recordingMonitor.onStopped(activity)
         }
 
         override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
         override fun onActivityResumed(activity: Activity) = Unit
         override fun onActivityPaused(activity: Activity) = Unit
-        override fun onActivityStopped(activity: Activity) = Unit
         override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
         override fun onActivityDestroyed(activity: Activity) = Unit
     }
@@ -47,7 +53,7 @@ public class PosGuardIntegrity private constructor(
     public companion object {
         /** Registers the monitors on [application] and returns the integrity setup. Main thread. */
         public fun install(application: Application, config: IntegrityConfig = IntegrityConfig()): PosGuardIntegrity {
-            val integrity = PosGuardIntegrity(application, config, ObscuredTouchMonitor())
+            val integrity = PosGuardIntegrity(application, config, ObscuredTouchMonitor(), ScreenRecordingMonitor())
             application.registerActivityLifecycleCallbacks(integrity.lifecycle)
             return integrity
         }

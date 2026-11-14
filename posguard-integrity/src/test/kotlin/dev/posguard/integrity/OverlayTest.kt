@@ -137,7 +137,7 @@ class OverlayTest {
         val overlay = integrity.signals().first { it.id == ObscuredTouchSignal.ID }
         assertTrue(overlay.check() is SignalResult.Detected)
         assertEquals(
-            listOf(ObscuredTouchSignal.ID, AccessibilitySignal.ID, DebuggerSignal.ID, RootEmulatorSignal.ID),
+            listOf(ObscuredTouchSignal.ID, ScreenRecordingSignal.ID, AccessibilitySignal.ID, DebuggerSignal.ID, RootEmulatorSignal.ID),
             integrity.signals().map { it.id },
         )
     }

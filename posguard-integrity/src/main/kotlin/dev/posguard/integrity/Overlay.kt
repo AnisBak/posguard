@@ -1,6 +1,7 @@
 package dev.posguard.integrity
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
@@ -157,6 +158,9 @@ public object PaymentScreenProtection {
         setHideOverlays(window, context, hide = false)
     }
 
+    // The permission is checked at runtime below. It is not declared in this library's
+    // manifest: apps opt in by declaring HIDE_OVERLAY_WINDOWS themselves.
+    @SuppressLint("MissingPermission")
     private fun setHideOverlays(window: Window, context: Context, hide: Boolean): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false
         // API 31: Window.setHideOverlayWindows, Manifest.permission.HIDE_OVERLAY_WINDOWS.
