@@ -47,6 +47,10 @@ internal interface TransactionDao {
     @Query("SELECT state FROM posguard_txn WHERE id = :id")
     fun observeState(id: String): Flow<String?>
 
+    // rowid breaks ties between rows created in the same millisecond (insertion order).
+    @Query("SELECT * FROM posguard_txn ORDER BY createdAtMillis DESC, rowid DESC LIMIT :limit")
+    fun observeRecent(limit: Int): Flow<List<TransactionEntity>>
+
     @Query("SELECT * FROM posguard_txn WHERE state IN (:states) ORDER BY createdAtMillis, id")
     suspend fun findByStates(states: List<String>): List<TransactionEntity>
 

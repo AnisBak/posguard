@@ -142,5 +142,6 @@ class PlayIntegritySignalsTest {
         override suspend fun recoverPending(): List<RecoveredTxn> = error("unused")
         override suspend fun get(id: TxnId): TransactionRecord? = error("unused")
         override fun observe(id: TxnId): Flow<TxnState> = error("unused")
+        override fun observeRecent(limit: Int): Flow<List<TransactionRecord>> = error("unused")
     }
 }

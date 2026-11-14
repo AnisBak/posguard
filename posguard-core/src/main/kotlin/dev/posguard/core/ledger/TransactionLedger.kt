@@ -88,4 +88,7 @@ public interface TransactionLedger {
 
     /** Emits the current state of [id], then every change. */
     public fun observe(id: TxnId): Flow<TxnState>
+
+    /** Emits the [limit] most recent transactions (newest first), then again after every change. */
+    public fun observeRecent(limit: Int): Flow<List<TransactionRecord>>
 }

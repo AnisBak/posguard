@@ -22,6 +22,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -127,6 +128,14 @@ internal class RoomTransactionLedger(
             .mapNotNull { it?.let(TxnState::valueOf) }
             .distinctUntilChanged()
             .flowOn(dispatcher)
+
+    override fun observeRecent(limit: Int): Flow<List<TransactionRecord>> {
+        require(limit > 0) { "limit must be positive." }
+        return dao.observeRecent(limit)
+            .map { rows -> rows.map { it.toRecord() } }
+            .distinctUntilChanged()
+            .flowOn(dispatcher)
+    }
 
     // --- internals -------------------------------------------------------------------------
 

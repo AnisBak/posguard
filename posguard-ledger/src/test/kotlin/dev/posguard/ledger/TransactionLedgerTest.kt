@@ -84,6 +84,24 @@ class TransactionLedgerTest {
     }
 
     @Test
+    fun `observeRecent lists newest first, honors the limit, and updates on change`() = runTest {
+        val ledger = testLedger()
+        val first = ledger.begin(usd, Tender.CARD)
+        val second = ledger.begin(usd, Tender.CARD)
+        val third = ledger.begin(usd, Tender.EBT_SNAP)
+
+        ledger.observeRecent(limit = 2).test {
+            assertEquals(listOf(third, second), awaitItem().map { it.id })
+            ledger.markSubmitted(third)
+            val updated = awaitItem()
+            assertEquals(listOf(third, second), updated.map { it.id })
+            assertEquals(TxnState.SUBMITTED, updated.first().state)
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertEquals(TxnState.CREATED, ledger.get(first)!!.state)
+    }
+
+    @Test
     fun `illegal transition throws and leaves the journal unchanged`() = runTest {
         val ledger = testLedger()
         val id = ledger.begin(usd, Tender.CARD)
