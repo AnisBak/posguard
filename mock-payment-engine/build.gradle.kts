@@ -10,4 +10,9 @@ android {
 
 dependencies {
     api(project(":posguard-core"))
+
+    testImplementation(project(":posguard-ledger")) // end-to-end scenario tests only
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.turbine)
 }
