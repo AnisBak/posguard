@@ -11,4 +11,7 @@ android {
 
 dependencies {
     api(project(":posguard-core"))
+
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
 }
