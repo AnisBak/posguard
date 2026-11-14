@@ -1,6 +1,6 @@
 # Architecture
 
-> Status: first version (2026-11-13). Module shells exist, and the APIs below are the target shape for Milestone 1.
+> Status (2026-11-14): the `posguard-core` API is implemented and tested. The other modules are shells.
 
 ## Principle: wrap, never replace
 
@@ -37,6 +37,19 @@ posguard sits **around** a certified payment engine (a SoftPOS SDK or a POS term
 | `demo-app` | Android app | Fictional "Sunrise Market" with Demo controls. Runs fully offline. |
 
 Dependency direction: every library depends on `posguard-core`, and nothing depends on `demo-app` or `mock-payment-engine` except the demo itself.
+
+## Core API (`posguard-core`)
+
+| Package | Key types |
+|---|---|
+| `dev.posguard.core` | `PosGuard` (+ `Builder`), `VerdictEvaluator` |
+| `dev.posguard.core.verdict` | `ReasonCode` (stable `code` + plain-English `description`), `GuardAction`, `GuardVerdict` (`Allow` / `Warn` / `Block`) |
+| `dev.posguard.core.policy` | `GuardPolicy` (defaults, builder, strict `fromProperties`). See [policy-defaults.md](policy-defaults.md) |
+| `dev.posguard.core.signal` | `IntegritySignal`, `SignalResult` (`Clear` / `Detected` / `Unavailable`) |
+| `dev.posguard.core.ledger` | `TransactionLedger`, `TxnState`, `TxnStateMachine`, `TransactionRecord`, `Money`, `Tender`, `EngineResult`, `EngineStatusSource`. See [ADR-002](decisions/ADR-002-idempotent-ledger.md) |
+| `dev.posguard.core.event` | `GuardEvent`, `GuardEventListener` |
+
+**Preflight flow:** `PosGuard.preflight()` switches to a background dispatcher and runs all signals in parallel, each with a timeout (default 3 s). Any exception or timeout becomes `SignalResult.Unavailable` → `INTEGRITY_UNAVAILABLE`, and exception messages are dropped so they can't leak data. `VerdictEvaluator` applies the policy (the strictest action wins), then listeners receive `PreflightEvaluated`. A throwing listener is ignored.
 
 ## Extension points (open-core boundary)
 
