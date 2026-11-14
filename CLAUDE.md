@@ -57,6 +57,7 @@ Use the latest **stable** versions and pin them. **Ask before adding any depende
 ```
 /posguard-core        Public API, verdict and decision types, reason codes, policy config
 /posguard-integrity   Device, app, and screen integrity signals; relay-risk flags (V2)
+/posguard-integrity-play  Optional Play Integrity signals (separate so non-GMS POS devices avoid Play libs)
 /posguard-ledger      Outage-safe transaction journal and recovery
 /posguard-telemetry   Secure error/event reporting with card-data scrubbing; webhook (V2)
 /posguard-devices     (V2) Card reader / printer / scanner connectivity watchdog
@@ -192,7 +193,7 @@ Keep these current; they are part of the deliverable:
 ### M1 — Core protection + outage-safe checkout (start here)
 - [x] Project setup: modules, version catalog, Apache-2.0 license, CI-friendly Gradle
 - [x] `posguard-core`: API, verdicts, reason codes, policy config
-- [ ] `posguard-integrity`: overlay, screen capture, accessibility, root/emulator/debugger signals; Play Integrity with real + fake provider
+- [x] `posguard-integrity`: overlay, screen capture, accessibility, root/emulator/debugger signals; Play Integrity with real + fake provider (real provider awaits Play Console setup and device checks)
 - [x] `posguard-ledger`: state machine, idempotency, crash and network recovery, unit tests
 - [x] `posguard-telemetry`: event schema, scrubber with tests, local sink
 - [x] `mock-payment-engine` with failure modes

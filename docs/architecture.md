@@ -1,6 +1,6 @@
 # Architecture
 
-> Status (2026-11-14): `posguard-core`, `posguard-ledger`, `posguard-telemetry`, and `mock-payment-engine` are implemented and tested. `posguard-integrity` and `demo-app` are next.
+> Status (2026-11-14): all M1 library modules are implemented and tested. `demo-app` is next.
 
 ## Principle: wrap, never replace
 
@@ -31,6 +31,7 @@ posguard sits **around** a certified payment engine (a SoftPOS SDK or a POS term
 |---|---|---|
 | `posguard-core` | Kotlin/JVM | Public API: `PosGuard`, `GuardVerdict`, `ReasonCode`, policy config, the `TransactionLedger` contract. No Android dependency, so it is fast to test. |
 | `posguard-integrity` | Android library | Device, app, and screen integrity signals. Each signal fails safe to `INTEGRITY_UNAVAILABLE`. |
+| `posguard-integrity-play` | Android library (optional) | Play Integrity verdict signals. Separate so POS terminals without Google Play services avoid the Play libraries. |
 | `posguard-ledger` | Android library | Outage-safe journal (Room) with idempotency keys and crash or network recovery (WorkManager). |
 | `posguard-telemetry` | Android library | Event schema, card-data scrubber, local buffer, pluggable sinks. |
 | `mock-payment-engine` | Android library (not published) | Fake certified SDK with failure modes for demos and tests. **Not real.** |
@@ -54,6 +55,10 @@ Dependency direction: every library depends on `posguard-core`, and nothing depe
 ## Ledger (`posguard-ledger`)
 
 Room-backed `TransactionLedger` built with `PosGuardLedger.Builder`. Writes are serialized in-process and use compare-and-set on a version column. `recoverPending()` resolves pending payments by idempotency key, and `LedgerRecoveryWorker` (WorkManager) repeats recovery on reconnect. See [ledger.md](ledger.md).
+
+## Integrity (`posguard-integrity`, `posguard-integrity-play`)
+
+`PosGuardIntegrity.install(application)` attaches the obscured-touch and screen-recording monitors and returns the default signals. `PaymentScreenProtection` hardens the payment window. Play Integrity signals live in an optional module and share one verdict fetch per preflight. See [integrity.md](integrity.md) and [threat-model.md](threat-model.md).
 
 ## Telemetry (`posguard-telemetry`)
 
