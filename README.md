@@ -23,6 +23,10 @@ posguard is an open-source Android toolkit that helps payment-app makers keep ca
 
 A fictional food stand that runs fully offline, using a mock payment engine and a mock integrity server. Every screen says **DEMO — NOT A REAL PAYMENT**. Long-press the ☀ logo for Demo controls. See the [2-minute demo script](docs/demo-script.md).
 
+<img src="docs/images/demo.gif" width="280" alt="Sunrise Market running demo scenarios 1–5 and scrubbed telemetry (5× speed)">
+
+*Scenarios 1–5 and scrubbed telemetry, driven automatically on an API 36 emulator (5× speed).*
+
 | 1 · Normal payment | 2 · Overlay blocked | 4 · Network drop: no blind retry | 5 · Recovered after a crash |
 |---|---|---|---|
 | <img src="docs/images/scenario1-approved.png" width="200"> | <img src="docs/images/scenario2-overlay-blocked.png" width="200"> | <img src="docs/images/scenario4-unknown.png" width="200"> | <img src="docs/images/scenario5-recovered.png" width="200"> |
