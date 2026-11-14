@@ -6,6 +6,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ## [Unreleased]
 
 ### Added
+- `demo-app` (2026-11-14): Sunrise Market (shop, cart, history, payment screen with protection), a Why-blocked/flagged panel, hidden Demo controls for scenarios 1–5 plus five extra failure modes, a live scrubbed telemetry panel, an offline mock integrity server, a demo policy loaded from assets, and demo-only simulated threats that can only add detections. 14 controller tests. Scenarios 1–5 verified on a Pixel 9 API 36 emulator.
+- `TransactionLedger.observeRecent(limit)` (core + ledger).
+- Docs: `docs/demo-script.md`, README quick start, demo screenshots.
 - `posguard-integrity` (2026-11-14): obscured-touch overlay detection, screen-recording signal (API 35+), accessibility, debugger, and root/emulator signals, plus `PaymentScreenProtection` (FLAG_SECURE, obscured-touch filtering, hide overlays on API 31+) and one-line `PosGuardIntegrity.install`. Every API was verified against developer.android.com. 36 tests.
 - `posguard-integrity-play` (2026-11-14): optional Play Integrity module (standard requests, backend verifier, five signals sharing one fetch) and an offline `FakeIntegrityVerdictSource`. 9 tests.
 - Docs: `docs/integrity.md` and a first `docs/threat-model.md`.

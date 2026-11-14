@@ -11,6 +11,22 @@ posguard is an open-source Android toolkit that helps payment-app makers keep ca
 - **Secure telemetry:** error and event reporting that strips card-like data before it leaves the device.
 - **Mock payment engine and demo app:** "Sunrise Market", a fictional small grocer, that runs fully offline.
 
+## Why it matters
+
+- Cards make up over three quarters of 236.6 billion U.S. noncash payments (Federal Reserve Payments Study, 2025 initial findings).
+- 29.8 million of 36.2 million U.S. small businesses have no employees (SBA Office of Advocacy, 2026), and phones are becoming their payment terminal (Visa reports 20M+ Tap to Phone devices, company data).
+- The U.S. Secret Service reports POS and ATM skimming losses of over $1 billion a year, and increasingly targets EBT skimming.
+- USDA proposed (October 2026) that SNAP retailers accept chip and contactless EBT.
+- PCI validates the payment kernel. The merchant app around it is not covered by that certification. That app is what posguard protects.
+
+## Demo: Sunrise Market
+
+A fictional food stand that runs fully offline, using a mock payment engine and a mock integrity server. Every screen says **DEMO — NOT A REAL PAYMENT**. Long-press the ☀ logo for Demo controls. See the [2-minute demo script](docs/demo-script.md).
+
+| 1 · Normal payment | 2 · Overlay blocked | 4 · Network drop: no blind retry | 5 · Recovered after a crash |
+|---|---|---|---|
+| <img src="docs/images/scenario1-approved.png" width="200"> | <img src="docs/images/scenario2-overlay-blocked.png" width="200"> | <img src="docs/images/scenario4-unknown.png" width="200"> | <img src="docs/images/scenario5-recovered.png" width="200"> |
+
 ## What posguard does not do
 
 - No EMV kernels, card reading, PIN entry, or card-data encryption.
@@ -20,16 +36,33 @@ posguard is an open-source Android toolkit that helps payment-app makers keep ca
 
 ## Status
 
-Milestone 1 is in progress. See [CHANGELOG.md](CHANGELOG.md) and [docs/architecture.md](docs/architecture.md).
+Milestone 1: the libraries and the demo are done, and demo scenarios 1–5 have been verified on an Android 16 (API 36) emulator. Real-device checks and the first tagged release are next. See [CHANGELOG.md](CHANGELOG.md).
 
-## Build from source
+Docs: [architecture](docs/architecture.md) · [threat model](docs/threat-model.md) · [integrity signals](docs/integrity.md) · [ledger](docs/ledger.md) · [event schema](docs/event-schema.md) · [policy defaults](docs/policy-defaults.md) · [decisions](docs/decisions/)
 
-Requirements: JDK 17 or newer, and the Android SDK.
+## Quick start (under 5 minutes)
+
+Requirements: JDK 17 or newer, the Android SDK, and a device or emulator (Android 8.0+).
 
 ```sh
 echo "sdk.dir=/path/to/Android/Sdk" > local.properties
-./gradlew build
-./gradlew :demo-app:installDebug   # Sunrise Market demo (placeholder for now)
+./gradlew :demo-app:installDebug   # installs Sunrise Market
+./gradlew build                    # all modules: compile, lint, unit tests
+```
+
+Using the libraries in your app:
+
+```kotlin
+val engine = /* your adapter around the certified SDK; implements EngineStatusSource */
+val ledger = PosGuardLedger.Builder(context, engine).build()
+val integrity = PosGuardIntegrity.install(application)
+val guard = PosGuard.Builder(ledger).signals(integrity.signals()).build()
+
+ledger.recoverPending()                       // on start: resolve unfinished payments first
+when (val verdict = guard.preflight()) {      // before opening payment acceptance
+    is GuardVerdict.Block -> showWhyBlocked(verdict.reasons)
+    else -> openPaymentScreen()
+}
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for project rules.

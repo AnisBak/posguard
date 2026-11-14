@@ -1,6 +1,6 @@
 # Architecture
 
-> Status (2026-11-14): all M1 library modules are implemented and tested. `demo-app` is next.
+> Status (2026-11-14): all M1 modules, including `demo-app`, are implemented and tested. Demo scenarios 1–5 were verified on an emulator.
 
 ## Principle: wrap, never replace
 

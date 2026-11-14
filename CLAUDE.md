@@ -197,8 +197,8 @@ Keep these current; they are part of the deliverable:
 - [x] `posguard-ledger`: state machine, idempotency, crash and network recovery, unit tests
 - [x] `posguard-telemetry`: event schema, scrubber with tests, local sink
 - [x] `mock-payment-engine` with failure modes
-- [ ] `demo-app` with Demo controls and "Why blocked" panel; offline
-- [ ] Scenarios 1–5 working end to end
+- [x] `demo-app` with Demo controls and "Why blocked" panel; offline
+- [x] Scenarios 1–5 working end to end (verified on API 36 emulator; real-device run pending)
 - [ ] README, architecture, threat model, demo script (first versions); first tagged release
 
 ### M2 — Devices, relay flags, assessment, distribution
