@@ -28,6 +28,7 @@ rootProject.name = "posguard"
 include(
     ":posguard-core",
     ":posguard-integrity",
+    ":posguard-integrity-play",
     ":posguard-ledger",
     ":posguard-telemetry",
     ":mock-payment-engine",
