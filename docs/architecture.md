@@ -1,6 +1,6 @@
 # Architecture
 
-> Status (2026-11-14): `posguard-core` and `posguard-ledger` are implemented and tested. The other modules are shells.
+> Status (2026-11-14): `posguard-core`, `posguard-ledger`, and `mock-payment-engine` are implemented and tested. The other modules are shells.
 
 ## Principle: wrap, never replace
 
@@ -54,6 +54,10 @@ Dependency direction: every library depends on `posguard-core`, and nothing depe
 ## Ledger (`posguard-ledger`)
 
 Room-backed `TransactionLedger` built with `PosGuardLedger.Builder`. Writes are serialized in-process and use compare-and-set on a version column. `recoverPending()` resolves pending payments by idempotency key, and `LedgerRecoveryWorker` (WorkManager) repeats recovery on reconnect. See [ledger.md](ledger.md).
+
+## Mock engine (`mock-payment-engine`)
+
+A fake SoftPOS SDK (**not real**) with a simulated processor that deduplicates by idempotency key and implements `EngineStatusSource`. It can simulate approve, decline, timeout, network drop after submit, duplicate response, and engine crash. See [mock-engine.md](mock-engine.md).
 
 ## Extension points (open-core boundary)
 

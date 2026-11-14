@@ -195,7 +195,7 @@ Keep these current; they are part of the deliverable:
 - [ ] `posguard-integrity`: overlay, screen capture, accessibility, root/emulator/debugger signals; Play Integrity with real + fake provider
 - [x] `posguard-ledger`: state machine, idempotency, crash and network recovery, unit tests
 - [ ] `posguard-telemetry`: event schema, scrubber with tests, local sink
-- [ ] `mock-payment-engine` with failure modes
+- [x] `mock-payment-engine` with failure modes
 - [ ] `demo-app` with Demo controls and "Why blocked" panel; offline
 - [ ] Scenarios 1–5 working end to end
 - [ ] README, architecture, threat model, demo script (first versions); first tagged release
