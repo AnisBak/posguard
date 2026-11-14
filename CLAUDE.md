@@ -127,7 +127,7 @@ Goal: a payment is **never lost and never charged twice**, even if the app crash
 - `UNKNOWN` (network dropped after submit): on reconnect, query status with the idempotency key; only retry if the engine confirms nothing was processed.
 - Crash recovery: `recoverPending()` runs on app start; pending `SUBMITTED`/`UNKNOWN` transactions are resolved before new payments.
 - Offline acceptance (store-and-forward) is **off by default** and only enabled through explicit config with limits, because card-network and processor rules govern it.
-- Journal stores only: id, idempotency key, amount, currency, tender type, state, timestamps, engine reference. **Never card numbers, PINs, track data, or CVV.**
+- Journal stores only: id, idempotency key, amount, currency, tender type, state, timestamps, engine reference, outcome (approved/declined). **Never card numbers, PINs, track data, or CVV.**
 
 ## 8. Secure telemetry (posguard-telemetry)
 

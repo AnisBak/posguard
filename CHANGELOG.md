@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ## [Unreleased]
 
 ### Added
+- Ledger records keep the engine's **outcome** (`TxnOutcome.APPROVED`/`DECLINED`) after completion. Schema v2 with a non-destructive v1→v2 migration (tested against the committed v1 schema). The demo history now shows declined payments correctly after they close.
 - `demo-app` (2026-11-14): Sunrise Market (shop, cart, history, payment screen with protection), a Why-blocked/flagged panel, hidden Demo controls for scenarios 1–5 plus five extra failure modes, a live scrubbed telemetry panel, an offline mock integrity server, a demo policy loaded from assets, and demo-only simulated threats that can only add detections. 14 controller tests. Scenarios 1–5 verified on a Pixel 9 API 36 emulator.
 - `TransactionLedger.observeRecent(limit)` (core + ledger).
 - Docs: `docs/demo-script.md`, README quick start, demo screenshots.

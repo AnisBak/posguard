@@ -15,6 +15,7 @@ import dev.posguard.core.ledger.Tender
 import dev.posguard.core.ledger.TransactionLedger
 import dev.posguard.core.ledger.TransactionRecord
 import dev.posguard.core.ledger.TxnId
+import dev.posguard.core.ledger.TxnOutcome
 import dev.posguard.core.ledger.TxnState
 import dev.posguard.core.ledger.TxnStateMachine
 import kotlinx.coroutines.CancellationException
@@ -88,8 +89,8 @@ internal class RoomTransactionLedger(
         mutate(id) { current ->
             if (isDuplicate(current, result)) return@mutate null
             when (result) {
-                is EngineResult.Authorized -> Change(TxnState.AUTHORIZED, result.engineReference)
-                is EngineResult.Declined -> Change(TxnState.DECLINED, result.engineReference)
+                is EngineResult.Authorized -> Change(TxnState.AUTHORIZED, result.engineReference, outcome = TxnOutcome.APPROVED)
+                is EngineResult.Declined -> Change(TxnState.DECLINED, result.engineReference, outcome = TxnOutcome.DECLINED)
                 EngineResult.Unknown -> Change(TxnState.UNKNOWN)
             }
         }
@@ -145,6 +146,8 @@ internal class RoomTransactionLedger(
         val resubmitAllowed: Boolean = false,
         /** Only recovery may rewrite a row without changing its state (to set the resubmit flag). */
         val flagOnly: Boolean = false,
+        /** Set with AUTHORIZED / DECLINED. Otherwise the stored outcome is kept. */
+        val outcome: TxnOutcome? = null,
     )
 
     private suspend fun <T> io(block: suspend () -> T): T = withContext(dispatcher) { block() }
@@ -177,6 +180,7 @@ internal class RoomTransactionLedger(
             updatedAtMillis = now,
             engineReference = change.engineReference ?: current.engineReference,
             resubmitAllowed = change.resubmitAllowed,
+            outcome = change.outcome?.name ?: current.outcome,
         )
         check(rows == 1) { "Transaction ${current.id} was changed concurrently; retry." }
         return if (from != change.to) {
@@ -229,9 +233,10 @@ internal class RoomTransactionLedger(
                     // CREATED cannot jump to a result: record that the engine did receive it.
                     if (current.txnState == TxnState.CREATED) step(Change(TxnState.SUBMITTED))
                     if (status is EngineStatus.Authorized) {
-                        step(Change(TxnState.AUTHORIZED, status.engineReference))
+                        step(Change(TxnState.AUTHORIZED, status.engineReference, outcome = TxnOutcome.APPROVED))
                     } else {
-                        step(Change(TxnState.DECLINED, (status as EngineStatus.Declined).engineReference))
+                        val declined = status as EngineStatus.Declined
+                        step(Change(TxnState.DECLINED, declined.engineReference, outcome = TxnOutcome.DECLINED))
                     }
                     RecoveryOutcome.RESOLVED
                 }
@@ -277,4 +282,5 @@ internal fun TransactionEntity.toRecord(): TransactionRecord = TransactionRecord
     createdAt = Instant.ofEpochMilli(createdAtMillis),
     updatedAt = Instant.ofEpochMilli(updatedAtMillis),
     engineReference = engineReference,
+    outcome = outcome?.let(TxnOutcome::valueOf),
 )

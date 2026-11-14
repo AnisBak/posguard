@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import dev.posguard.core.ledger.TransactionRecord
+import dev.posguard.core.ledger.TxnOutcome
 import dev.posguard.core.ledger.TxnState
 import dev.posguard.core.verdict.GuardAction
 import dev.posguard.core.verdict.GuardVerdict
@@ -352,7 +353,7 @@ private fun HistoryScreen(history: List<TransactionRecord>) {
                         Text("${formatCents(r.amount.amountCents)} · ${r.tender}", fontWeight = FontWeight.Bold)
                         Text("${TIME.format(r.createdAt)} · ${r.id.value.take(8)}", style = MaterialTheme.typography.bodySmall)
                     }
-                    StateChip(r.state)
+                    StateChip(r.state, r.outcome)
                 }
             }
         }
@@ -360,9 +361,10 @@ private fun HistoryScreen(history: List<TransactionRecord>) {
 }
 
 @Composable
-private fun StateChip(state: TxnState) {
+private fun StateChip(state: TxnState, outcome: TxnOutcome?) {
     val (label, color) = when (state) {
-        TxnState.COMPLETED -> "APPROVED" to Color(0xFF15803D)
+        TxnState.COMPLETED ->
+            if (outcome == TxnOutcome.DECLINED) "DECLINED" to DemoRed else "APPROVED" to Color(0xFF15803D)
         TxnState.AUTHORIZED -> "AUTHORIZED" to Color(0xFF15803D)
         TxnState.DECLINED -> "DECLINED" to DemoRed
         TxnState.VOIDED -> "VOIDED" to Color.Gray

@@ -6,6 +6,7 @@ import dev.posguard.core.event.GuardEventListener
 import dev.posguard.core.ledger.EngineStatusSource
 import dev.posguard.core.ledger.TransactionLedger
 import dev.posguard.ledger.internal.LedgerDatabase
+import dev.posguard.ledger.internal.MIGRATION_1_2
 import dev.posguard.ledger.internal.RoomTransactionLedger
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -67,7 +68,7 @@ public object PosGuardLedger {
                 Room.inMemoryDatabaseBuilder(appContext, LedgerDatabase::class.java)
             } else {
                 Room.databaseBuilder(appContext, LedgerDatabase::class.java, name)
-            }.build()
+            }.addMigrations(MIGRATION_1_2).build()
             return RoomTransactionLedger(
                 db = db,
                 engineStatus = engineStatusSource,

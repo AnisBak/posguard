@@ -25,9 +25,9 @@ class CompareAndSetTest {
         )
         val stale = dao.get("t1")!!
 
-        assertEquals(1, dao.compareAndSet("t1", stale.version, "SUBMITTED", 1, null, false))
+        assertEquals(1, dao.compareAndSet("t1", stale.version, "SUBMITTED", 1, null, false, null))
         // A second writer that read the same version must lose.
-        assertEquals(0, dao.compareAndSet("t1", stale.version, "VOIDED", 2, null, false))
+        assertEquals(0, dao.compareAndSet("t1", stale.version, "VOIDED", 2, null, false, null))
 
         val row = dao.get("t1")!!
         assertEquals("SUBMITTED", row.state)

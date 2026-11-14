@@ -9,6 +9,7 @@ import dev.posguard.core.ledger.Tender
 import dev.posguard.core.ledger.TransactionLedger
 import dev.posguard.core.ledger.TransactionRecord
 import dev.posguard.core.ledger.TxnId
+import dev.posguard.core.ledger.TxnOutcome
 import dev.posguard.core.ledger.TxnState
 import dev.posguard.core.verdict.GuardVerdict
 import dev.posguard.demo.DemoThreats
@@ -177,13 +178,11 @@ class CheckoutController(
         }
         ledger.markResult(id, result)
         when (result) {
-            is EngineResult.Authorized -> {
+            is EngineResult.Authorized, is EngineResult.Declined -> {
+                // The record keeps its outcome (APPROVED / DECLINED) after completion.
                 ledger.markCompleted(id)
                 setPhase(phaseFor(checkNotNull(ledger.get(id)), id))
             }
-            // Declined payments rest in DECLINED so history keeps the outcome
-            // (a COMPLETED record does not say whether it was approved).
-            is EngineResult.Declined -> setPhase(PaymentPhase.Declined(result.declineCode))
             EngineResult.Unknown -> {
                 scheduleRecovery()
                 setPhase(PaymentPhase.Unknown(id))
@@ -195,11 +194,14 @@ class CheckoutController(
     }
 
     private suspend fun phaseFor(record: TransactionRecord, id: TxnId): PaymentPhase = when (record.state) {
-        TxnState.AUTHORIZED, TxnState.COMPLETED -> {
-            if (record.state == TxnState.AUTHORIZED) ledger.markCompleted(id)
-            PaymentPhase.Approved(record.engineReference, chargesFor(record))
+        TxnState.AUTHORIZED, TxnState.DECLINED, TxnState.COMPLETED -> {
+            if (record.state != TxnState.COMPLETED) ledger.markCompleted(id)
+            if (record.outcome == TxnOutcome.DECLINED) {
+                PaymentPhase.Declined(declineCodeFor(record))
+            } else {
+                PaymentPhase.Approved(record.engineReference, chargesFor(record))
+            }
         }
-        TxnState.DECLINED -> PaymentPhase.Declined(declineCodeFor(record))
         TxnState.UNKNOWN, TxnState.CREATED -> {
             // Still pending: SAFE_TO_RESUBMIT if the engine confirmed nothing was processed.
             val safe = engine.queryStatusIsNotProcessed(record)
@@ -221,9 +223,10 @@ class CheckoutController(
         for (r in recovered) {
             when (r.outcome) {
                 RecoveryOutcome.RESOLVED -> {
-                    // Only approved payments are completed. Declined ones rest in DECLINED (see above).
-                    if (r.record.state == TxnState.AUTHORIZED) ledger.markCompleted(r.record.id)
-                    val what = if (r.record.state == TxnState.DECLINED) "declined" else "approved, charged ${chargesFor(r.record)}×"
+                    if (r.record.state == TxnState.AUTHORIZED || r.record.state == TxnState.DECLINED) {
+                        ledger.markCompleted(r.record.id)
+                    }
+                    val what = if (r.record.outcome == TxnOutcome.DECLINED) "declined" else "approved, charged ${chargesFor(r.record)}×"
                     messages += "Recovered ${formatCents(r.record.amount.amountCents)} payment: $what"
                 }
                 RecoveryOutcome.SAFE_TO_RESUBMIT -> if (startup || r.record.id != activeTxn) {

@@ -4,6 +4,15 @@ import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 
 /**
+ * The engine's final answer, kept after the transaction is closed, so a
+ * [TxnState.COMPLETED] record still says whether it was approved.
+ */
+public enum class TxnOutcome {
+    APPROVED,
+    DECLINED,
+}
+
+/**
  * Everything the journal stores about a transaction. The fields are limited on
  * purpose (CLAUDE.md §7): **no card numbers, PINs, track data, or CVV**, and
  * there is no field where they could go.
@@ -18,6 +27,8 @@ public data class TransactionRecord(
     val updatedAt: Instant,
     /** Opaque reference from the engine, once known. */
     val engineReference: String? = null,
+    /** Set when the engine reports approved or declined. Null while the outcome is unknown. */
+    val outcome: TxnOutcome? = null,
 )
 
 /** What recovery concluded about one pending transaction. */

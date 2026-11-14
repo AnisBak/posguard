@@ -58,4 +58,4 @@ With a custom `Configuration.Provider`, remove WorkManager's default initializer
 
 ## What is stored
 
-Only id, idempotency key, amount, currency, tender, state, timestamps, engine reference, and internal bookkeeping (resubmit flag, version). **Never** card numbers, PINs, track data, or CVV. The table has no column for them. The schema is exported to `posguard-ledger/schemas/`. Destructive migrations are never used.
+Only id, idempotency key, amount, currency, tender, state, timestamps, engine reference, **outcome** (`APPROVED`/`DECLINED`, so a COMPLETED record still shows the engine's answer), and internal bookkeeping (resubmit flag, version). **Never** card numbers, PINs, track data, or CVV. The table has no column for them. The schema is exported to `posguard-ledger/schemas/`. Destructive migrations are never used. v1 → v2 added `outcome`: AUTHORIZED and DECLINED rows are backfilled, and COMPLETED rows from v1 keep a null outcome because v1 didn't record it.

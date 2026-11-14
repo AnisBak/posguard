@@ -237,6 +237,9 @@ class CheckoutControllerTest {
         app.controller.takePayment()
         app.controller.tapCard()
         assertEquals(PaymentPhase.Declined("05"), app.phase)
+        val record = app.history().single()
+        assertEquals(TxnState.COMPLETED, record.state)
+        assertEquals(dev.posguard.core.ledger.TxnOutcome.DECLINED, record.outcome)
     }
 
     @Test

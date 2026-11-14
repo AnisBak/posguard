@@ -30,7 +30,7 @@ On a phone acting as a payment terminal, the network can drop and the app can cr
    - `Unreachable` → leave it pending (`UNRESOLVED`). Never guess, and never resubmit.
 
    `CREATED` is included because the app can crash after handing the payment to the engine but before recording `SUBMITTED`.
-5. **Minimal data.** `TransactionRecord` has only id, key, amount, currency, tender, state, timestamps, and engine reference. There is no field for card numbers, PINs, track data, or CVV.
+5. **Minimal data.** `TransactionRecord` has only id, key, amount, currency, tender, state, timestamps, engine reference, and outcome (`APPROVED`/`DECLINED`, added in schema v2 so closed records keep the engine's answer). There is no field for card numbers, PINs, track data, or CVV.
 6. **Offline acceptance (store-and-forward) is off by default.** Card-network and processor rules govern it. It will need explicit, limited configuration.
 
 ## Consequences

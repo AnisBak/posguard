@@ -30,3 +30,6 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.androidx.work.testing)
 }
+
+// Exported Room schemas are test assets for MigrationTestHelper (Robolectric).
+android.sourceSets.getByName("test").assets.srcDir("$projectDir/schemas")

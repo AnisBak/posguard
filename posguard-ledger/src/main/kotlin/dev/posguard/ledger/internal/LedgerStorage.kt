@@ -9,6 +9,8 @@ import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -34,6 +36,8 @@ internal data class TransactionEntity(
     val resubmitAllowed: Boolean,
     /** Optimistic-lock version. Every write must match the version it read. */
     val version: Long,
+    /** `APPROVED` or `DECLINED` once the engine answered (schema v2). */
+    val outcome: String? = null,
 )
 
 @Dao
@@ -62,6 +66,7 @@ internal interface TransactionDao {
             updatedAtMillis = :updatedAtMillis,
             engineReference = :engineReference,
             resubmitAllowed = :resubmitAllowed,
+            outcome = :outcome,
             version = :expectedVersion + 1
         WHERE id = :id AND version = :expectedVersion
         """,
@@ -73,10 +78,24 @@ internal interface TransactionDao {
         updatedAtMillis: Long,
         engineReference: String?,
         resubmitAllowed: Boolean,
+        outcome: String?,
     ): Int
 }
 
-@Database(entities = [TransactionEntity::class], version = 1, exportSchema = true)
+@Database(entities = [TransactionEntity::class], version = 2, exportSchema = true)
 internal abstract class LedgerDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
+}
+
+/**
+ * v1 → v2: adds `outcome`. Rows whose state already shows the answer are
+ * backfilled. COMPLETED rows from v1 keep a null outcome, because v1 did not
+ * record it. Never destructive.
+ */
+internal val MIGRATION_1_2: Migration = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE posguard_txn ADD COLUMN outcome TEXT")
+        db.execSQL("UPDATE posguard_txn SET outcome = 'APPROVED' WHERE state = 'AUTHORIZED'")
+        db.execSQL("UPDATE posguard_txn SET outcome = 'DECLINED' WHERE state = 'DECLINED'")
+    }
 }
