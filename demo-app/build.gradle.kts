@@ -34,11 +34,16 @@ android {
     buildFeatures {
         compose = true
     }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 dependencies {
     implementation(project(":posguard-core"))
     implementation(project(":posguard-integrity"))
+    implementation(project(":posguard-integrity-play"))
     implementation(project(":posguard-ledger"))
     implementation(project(":posguard-telemetry"))
     implementation(project(":mock-payment-engine"))
@@ -54,6 +59,12 @@ dependencies {
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
+    implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.work.runtime.ktx)
 
     testImplementation(libs.junit4)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.turbine)
 }
