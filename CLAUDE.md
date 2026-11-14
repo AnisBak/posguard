@@ -193,7 +193,7 @@ Keep these current; they are part of the deliverable:
 - [x] Project setup: modules, version catalog, Apache-2.0 license, CI-friendly Gradle
 - [x] `posguard-core`: API, verdicts, reason codes, policy config
 - [ ] `posguard-integrity`: overlay, screen capture, accessibility, root/emulator/debugger signals; Play Integrity with real + fake provider
-- [ ] `posguard-ledger`: state machine, idempotency, crash and network recovery, unit tests
+- [x] `posguard-ledger`: state machine, idempotency, crash and network recovery, unit tests
 - [ ] `posguard-telemetry`: event schema, scrubber with tests, local sink
 - [ ] `mock-payment-engine` with failure modes
 - [ ] `demo-app` with Demo controls and "Why blocked" panel; offline

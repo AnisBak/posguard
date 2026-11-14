@@ -1,6 +1,6 @@
 # Architecture
 
-> Status (2026-11-14): the `posguard-core` API is implemented and tested. The other modules are shells.
+> Status (2026-11-14): `posguard-core` and `posguard-ledger` are implemented and tested. The other modules are shells.
 
 ## Principle: wrap, never replace
 
@@ -50,6 +50,10 @@ Dependency direction: every library depends on `posguard-core`, and nothing depe
 | `dev.posguard.core.event` | `GuardEvent`, `GuardEventListener` |
 
 **Preflight flow:** `PosGuard.preflight()` switches to a background dispatcher and runs all signals in parallel, each with a timeout (default 3 s). Any exception or timeout becomes `SignalResult.Unavailable` → `INTEGRITY_UNAVAILABLE`, and exception messages are dropped so they can't leak data. `VerdictEvaluator` applies the policy (the strictest action wins), then listeners receive `PreflightEvaluated`. A throwing listener is ignored.
+
+## Ledger (`posguard-ledger`)
+
+Room-backed `TransactionLedger` built with `PosGuardLedger.Builder`. Writes are serialized in-process and use compare-and-set on a version column. `recoverPending()` resolves pending payments by idempotency key, and `LedgerRecoveryWorker` (WorkManager) repeats recovery on reconnect. See [ledger.md](ledger.md).
 
 ## Extension points (open-core boundary)
 

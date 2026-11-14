@@ -1,6 +1,6 @@
 # ADR-002: Idempotent, state-machine transaction ledger
 
-- **Status:** Accepted (contract in `posguard-core`; Room implementation pending in `posguard-ledger`)
+- **Status:** Accepted. Contract in `posguard-core`, implemented in `posguard-ledger` (2026-11-14). See [ledger.md](../ledger.md).
 - **Date:** 2026-11-14
 
 ## Context
