@@ -24,8 +24,8 @@ Working codename in code: `posguard`. Product name TBD. Package root: `dev.posgu
 ## 2. Scope
 
 - **Version 1 (build now):** phone-terminal integrity, outage-safe transaction journal, secure telemetry, mock payment engine, demo app.
-- **Version 2:** device-connectivity watchdog, relay-fraud risk flags, codebase assessment tool, webhook export, Maven Central release.
-- **Version 3:** EBT checkout module against a simulator.
+- **Version 2 (current focus, re-prioritized 2026-11-15):** **EBT readiness**: chip and tap EBT checkout module against a simulator, with the ledger's outage safety. Relay-fraud risk flags and webhook export (done).
+- **Version 3:** device-connectivity watchdog, codebase assessment tool, benchmarks, Maven Central release.
 - **Not our product:** EMV kernels, card reading, PIN entry, encryption of card data, payment processing, PCI certification, physical skimmer detection, iOS.
 
 If a feature would require touching real card data, PINs, or certified payment internals, **stop and ask**.
@@ -56,15 +56,15 @@ Use the latest **stable** versions and pin them. **Ask before adding any depende
 
 ```
 /posguard-core        Public API, verdict and decision types, reason codes, policy config
-/posguard-integrity   Device, app, and screen integrity signals; relay-risk flags (V2)
+/posguard-integrity   Device, app, and screen integrity signals; relay-risk flags
 /posguard-integrity-play  Optional Play Integrity signals (separate so non-GMS POS devices avoid Play libs)
 /posguard-ledger      Outage-safe transaction journal and recovery
-/posguard-telemetry   Secure error/event reporting with card-data scrubbing; webhook (V2)
-/posguard-devices     (V2) Card reader / printer / scanner connectivity watchdog
-/posguard-ebt         (V3) EBT checkout flows (SNAP-eligible split, balance, chip/tap, fallback)
-/posguard-assess      (V2) CLI + Gradle plugin that scans an Android POS codebase
+/posguard-telemetry   Secure error/event reporting with card-data scrubbing; webhook
+/posguard-devices     (V3) Card reader / printer / scanner connectivity watchdog
+/posguard-ebt         (V2) EBT checkout flows (SNAP-eligible split, balance, chip/tap, fallback)
+/posguard-assess      (V3) CLI + Gradle plugin that scans an Android POS codebase
 /mock-payment-engine  Fake certified-SDK stand-in for demos and tests. Clearly labeled NOT REAL.
-/ebt-simulator        (V3) Fake EBT processor responses for demos and tests
+/ebt-simulator        (V2) Fake EBT processor responses for demos and tests
 /demo-app             Fictional "Sunrise Market" food stand / small grocer (Compose)
 /docs                 Architecture, threat model, decisions, demo script, benchmarks
 ```
@@ -114,7 +114,7 @@ Every signal returns a value plus a reason code and **fails safe**: an unavailab
 | Screen capture / recording | Secure window flag on payment screens; platform screen-capture / recording callbacks where available | Check docs per API level |
 | Risky accessibility services | Enabled accessibility services that are not on an allowlist | Never read their content |
 | Root / emulator / debugger | Lightweight heuristics; treat as signals, not proof | Document false-positive risk |
-| Relay risk pattern (V2) | Rule-based flags from transaction metadata the engine exposes (e.g., bursts of wallet taps, timing anomalies) | **Experimental.** Flag and hold for review; never auto-decline on this alone |
+| Relay risk pattern | Rule-based flags from transaction metadata the engine exposes (e.g., bursts of wallet taps, timing anomalies) | **Experimental.** Flag and hold for review; never auto-decline on this alone |
 
 **Do not guess Android API names or behaviors.** Verify each against developer.android.com for the target API levels and note the minimum version in code comments.
 
@@ -133,7 +133,7 @@ Goal: a payment is **never lost and never charged twice**, even if the app crash
 
 - Event schema: event type, reason codes, verdict, transaction state changes, device model, OS version, app version, timestamp. Document in `docs/event-schema.md`.
 - Scrubber runs on every message and field: removes Luhn-valid card-like numbers, email addresses, phone numbers, and anything flagged as sensitive. Unit-test it heavily.
-- Local buffer with size limits; export via pluggable sinks. V2: webhook sink so merchants feed their existing tools.
+- Local buffer with size limits; export via pluggable sinks, including a webhook sink so merchants feed their existing tools.
 
 ## 9. Mock payment engine and demo app
 
@@ -149,14 +149,14 @@ Goal: a payment is **never lost and never charged twice**, even if the app crash
 3. **Screen recording active** → payment blocked (`SCREEN_CAPTURE_ACTIVE`).
 4. **Network drops after submit** → `UNKNOWN` → reconnect → status resolved, **no double charge**.
 5. **App crashes mid-payment** → relaunch → recovered, correct final state.
-6. (V2) **Card reader disconnects** → watchdog reconnects, payment continues.
-7. (V2) **Burst of suspicious wallet taps** → flagged for review (`RELAY_RISK_PATTERN`).
-8. (V2) **Assessment report** on a sample legacy POS app.
-9. (V3) **EBT chip/tap purchase** with SNAP-eligible items separated, balance shown, safe fallback, via simulator.
+6. (V3) **Card reader disconnects** → watchdog reconnects, payment continues.
+7. **Burst of suspicious wallet taps** → flagged for review (`RELAY_RISK_PATTERN`).
+8. (V3) **Assessment report** on a sample legacy POS app.
+9. (V2) **EBT chip/tap purchase** with SNAP-eligible items separated, balance shown, safe fallback, via simulator.
 
 Every scenario must run from Demo controls without code changes.
 
-## 11. Assessment tool (posguard-assess, V2)
+## 11. Assessment tool (posguard-assess, V3)
 
 CLI and Gradle plugin that scans an Android codebase and produces a prioritized Markdown/HTML report:
 - Missing integrity or overlay protections on payment screens
@@ -166,9 +166,14 @@ CLI and Gradle plugin that scans an Android codebase and produces a prioritized 
 - Crash-unsafe payment flows (no idempotency, no recovery)
 Map findings to OWASP MASVS categories by name. Rank by **security risk × ease of fix** so teams can modernize incrementally. Test it only on the demo app and **public open-source Android apps**.
 
-## 12. EBT module (posguard-ebt, V3)
+## 12. EBT module (posguard-ebt, V2)
 
 Against `ebt-simulator` only: tender selection, SNAP-eligible vs non-eligible item split, balance inquiry, chip and tap with fallback, partial approvals, receipt fields. Item eligibility rules (including state purchase restrictions) come from a config file, never hardcoded. No real EBT processing.
+
+- Card-entry fallback order is configurable (default chip → tap → magstripe), and magstripe fallback can be turned off. posguard never reads the card; it only decides what to prompt next and records why.
+- EBT always uses a PIN. **PIN entry stays inside the certified engine or PIN pad.** posguard only learns approved or declined.
+- Each tender leg (SNAP, EBT cash, card) is its own ledger transaction with its own idempotency key and the same recovery rules.
+- Telemetry never carries balances or amounts for EBT events. Rule facts in docs must come from the published rule text, verified.
 
 ## 13. Privacy and safety rules (non-negotiable)
 
@@ -201,18 +206,22 @@ Keep these current; they are part of the deliverable:
 - [x] Scenarios 1–5 working end to end (verified on API 36 emulator; real-device run pending)
 - [x] README, architecture, threat model, demo script (first versions); first tagged release (v0.1.0, 2026-11-14)
 
-### M2 — Devices, relay flags, assessment, distribution
-- [ ] `posguard-devices` watchdog (with fake peripherals)
+### M2 — Relay flags + webhook
 - [x] Relay-risk flags (experimental) (scenario 7 in the demo; emulator run pending)
-- [ ] `posguard-assess` CLI + Gradle plugin; report on demo app and public apps
 - [x] Webhook sink
-- [ ] Benchmarks
-- [ ] Publish to Maven Central; scenarios 6–8
 
-### M3 — EBT readiness
-- [ ] `ebt-simulator` and `posguard-ebt`
-- [ ] Config-driven item eligibility
-- [ ] Scenario 9; docs update
+### M3 — EBT readiness (current focus; re-prioritized 2026-11-15 ahead of devices/assess)
+- [ ] Verify the USDA proposed rule text; cite only verified facts
+- [ ] Ledger records approved amount (partial approvals)
+- [ ] `posguard-ebt`: config-driven item eligibility, basket split, tender planner, entry fallback flow, checkout coordinator, receipt fields
+- [ ] `ebt-simulator` with fictional cards and failure modes
+- [ ] Scenario 9; docs (`docs/ebt.md`, ADR-003) update
+
+### M4 — Devices, assessment, distribution
+- [ ] `posguard-devices` watchdog (with fake peripherals)
+- [ ] `posguard-assess` CLI + Gradle plugin; report on demo app and public apps
+- [ ] Benchmarks
+- [ ] Publish to Maven Central; scenarios 6 and 8
 
 ## 16. How to work in this repo
 

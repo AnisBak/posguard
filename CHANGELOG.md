@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ## [Unreleased]
 
 ### Changed
+- Roadmap re-prioritized (2026-11-15): EBT readiness (`posguard-ebt`, `ebt-simulator`, demo scenario 9) is now Milestone 3 and the current focus. The device watchdog, assessment tool, benchmarks, and Maven Central move to Milestone 4.
 - `GuardEvent` has new subtypes. Code that matches `GuardEvent` exhaustively with `when` needs an `else` branch (KDoc now says so).
 
 ### Added

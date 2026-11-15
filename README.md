@@ -41,7 +41,7 @@ A fictional food stand that runs fully offline, using a mock payment engine and 
 
 ## Status
 
-Milestone 1: the libraries and the demo are done, and demo scenarios 1–5 have been verified on an Android 16 (API 36) emulator. First release: [v0.1.0](docs/releases/v0.1.0.md). Real-device checks are next. See [CHANGELOG.md](CHANGELOG.md).
+Milestone 1: the libraries and the demo are done, and demo scenarios 1–5 have been verified on an Android 16 (API 36) emulator. First release: [v0.1.0](docs/releases/v0.1.0.md). Milestone 2 added experimental relay-risk flags and a signed webhook sink. **Next: EBT readiness** (Milestone 3): chip and tap EBT checkout against a simulator, with SNAP-eligible item split, card-entry fallback, and partial approvals. See [CHANGELOG.md](CHANGELOG.md).
 
 Docs: [architecture](docs/architecture.md) · [threat model](docs/threat-model.md) · [integrity signals](docs/integrity.md) · [ledger](docs/ledger.md) · [event schema](docs/event-schema.md) · [policy defaults](docs/policy-defaults.md) · [relay-risk flags](docs/relay-risk.md) · [decisions](docs/decisions/)
 
