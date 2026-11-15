@@ -53,3 +53,40 @@ public sealed interface EngineStatus {
 public fun interface EngineStatusSource {
     public suspend fun queryStatus(key: IdempotencyKey): EngineStatus
 }
+
+/**
+ * Combines status sources for apps whose legs go to different engines (for
+ * example, EBT legs to an EBT-capable engine and card legs to a card engine),
+ * so one ledger can recover all of them.
+ *
+ * - Any source that knows the key (Authorized or Declined) wins.
+ * - Otherwise, if any source is unreachable (or throws), the answer is
+ *   [EngineStatus.Unreachable]: that engine might have processed it.
+ * - [EngineStatus.NotProcessed] only when **every** source says so. Only then
+ *   is resubmitting or voiding safe.
+ *
+ * Sources are queried in order. Idempotency keys are unique per transaction,
+ * so at most one engine should know a key.
+ */
+public fun combinedStatusSource(vararg sources: EngineStatusSource): EngineStatusSource {
+    require(sources.isNotEmpty()) { "At least one status source is required." }
+    val all = sources.toList()
+    return EngineStatusSource { key ->
+        var unreachable = false
+        for (source in all) {
+            val status = try {
+                source.queryStatus(key)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                EngineStatus.Unreachable
+            }
+            when (status) {
+                is EngineStatus.Authorized, is EngineStatus.Declined -> return@EngineStatusSource status
+                EngineStatus.Unreachable -> unreachable = true
+                EngineStatus.NotProcessed -> Unit
+            }
+        }
+        if (unreachable) EngineStatus.Unreachable else EngineStatus.NotProcessed
+    }
+}
