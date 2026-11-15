@@ -5,7 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+- `GuardEvent` has new subtypes. Code that matches `GuardEvent` exhaustively with `when` needs an `else` branch (KDoc now says so).
+
 ### Added
+- **Experimental relay-risk flags** (2026-11-15). `RelayRiskMonitor` in `posguard-integrity` runs pluggable `RelayRiskRule`s on non-sensitive `TapMetadata`. Built-in, untuned rules: wallet-tap burst (on by default), near-no-PIN-limit burst and slow card read (off until configured). It keeps a review queue and exposes `relay.signal`, which raises `RELAY_RISK_PATTERN` (capped at WARN) while a review is pending. It has a strict `RelayRiskConfig.fromProperties` loader and never declines. 26 tests. Docs: `docs/relay-risk.md`.
+- `GuardEvent.RelayRiskFlagged` / `RelayRiskReviewed` in core, and telemetry event types `RELAY_RISK_FLAGGED` / `RELAY_RISK_REVIEWED`.
+- `mock-payment-engine`: simulated tap metadata (`MockTapInfo`: entry mode and card read time) per charge, via `setNextTapProfile` and `tapInfo(key)`. The store still reads 0.1.0 records.
+- Demo scenario 7, **burst of wallet taps**: the third wallet tap is approved but held for review, and preflight warns until the review is done. 4 tests.
 - `WebhookSink` in `posguard-telemetry` (2026-11-15): posts scrubbed v1 event batches to an HTTPS endpoint, with optional HMAC-SHA256 request signing (`X-Posguard-Signature`), custom headers, and timeouts. It never follows redirects, rejects `http://` unless explicitly allowed, and relies on the telemetry buffer for retries. No new dependencies. 12 tests. Docs: webhook section in `docs/event-schema.md`.
 - Demo GIF in the README.
 

@@ -30,7 +30,7 @@ posguard sits **around** a certified payment engine (a SoftPOS SDK or a POS term
 | Module | Type | Responsibility |
 |---|---|---|
 | `posguard-core` | Kotlin/JVM | Public API: `PosGuard`, `GuardVerdict`, `ReasonCode`, policy config, the `TransactionLedger` contract. No Android dependency, so it is fast to test. |
-| `posguard-integrity` | Android library | Device, app, and screen integrity signals. Each signal fails safe to `INTEGRITY_UNAVAILABLE`. |
+| `posguard-integrity` | Android library | Device, app, and screen integrity signals. Each signal fails safe to `INTEGRITY_UNAVAILABLE`. Also the experimental relay-risk monitor. |
 | `posguard-integrity-play` | Android library (optional) | Play Integrity verdict signals. Separate so POS terminals without Google Play services avoid the Play libraries. |
 | `posguard-ledger` | Android library | Outage-safe journal (Room) with idempotency keys and crash or network recovery (WorkManager). |
 | `posguard-telemetry` | Android library | Event schema, card-data scrubber, local buffer, pluggable sinks. |
@@ -60,6 +60,8 @@ Room-backed `TransactionLedger` built with `PosGuardLedger.Builder`. Writes are 
 
 `PosGuardIntegrity.install(application)` attaches the obscured-touch and screen-recording monitors and returns the default signals. `PaymentScreenProtection` hardens the payment window. Play Integrity signals live in an optional module and share one verdict fetch per preflight. See [integrity.md](integrity.md) and [threat-model.md](threat-model.md).
 
+`RelayRiskMonitor` (experimental) runs pluggable `RelayRiskRule`s on non-sensitive tap metadata after the engine authorizes a payment. Flagged payments stay `AUTHORIZED` in the ledger until the merchant reviews them, and `relay.signal` makes preflight WARN meanwhile. It never declines. See [relay-risk.md](relay-risk.md).
+
 ## Telemetry (`posguard-telemetry`)
 
 `PosGuardTelemetry` is a `GuardEventListener`. Every event is scrubbed before buffering (card numbers, track data, emails, phones, sensitive keys; it fails closed). The buffer is bounded and delivers to pluggable `TelemetrySink`s (in-memory, rotating JSON lines, and a signed HTTPS `WebhookSink`), removing events only after every sink accepts them. See [event-schema.md](event-schema.md).
@@ -74,7 +76,7 @@ Private products must plug in **without forking**:
 
 - **Telemetry sinks**: an interface. A hosted dashboard is just another sink.
 - **Policy and thresholds**: loaded from config supplied by the integrating app, never hardcoded. Public defaults are conservative and documented.
-- **Detection rules and integrity providers**: interfaces, so a real Play Integrity provider, a fake provider, and third-party providers are interchangeable.
+- **Detection rules and integrity providers**: interfaces (`IntegritySignal`, `RelayRiskRule`), so a real Play Integrity provider, a fake provider, and third-party providers are interchangeable.
 
 ## Build
 

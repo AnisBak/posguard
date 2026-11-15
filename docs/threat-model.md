@@ -18,7 +18,7 @@
 | T8 | **Network drop or crash mid-payment** leading to a lost sale or double charge | Ledger: idempotency key, state machine, `recoverPending()` by key ([ADR-002](decisions/ADR-002-idempotent-ledger.md)) | Depends on the engine supporting status lookup by key. |
 | T9 | **Card data leaking through logs or telemetry** | Telemetry scrubber (PAN, track, email, phone, sensitive keys; fails closed). Schema excludes amounts and engine references ([event-schema.md](event-schema.md)) | Pattern-based. Redaction errs toward false positives. Apps must still not log card data. |
 | T10 | **Security checks blocked or failing** (offline, API missing, signal crash) | Every signal fails safe to `INTEGRITY_UNAVAILABLE`. Default: WARN, configurable to BLOCK (fail closed) | WARN keeps merchants selling during outages. Choose BLOCK for higher risk tolerance. |
-| T11 | **Relay attacks** on contactless taps | V2: experimental `RELAY_RISK_PATTERN`, capped at WARN | Not in M1. |
+| T11 | **Relay attacks** on contactless taps | Experimental `RelayRiskMonitor` ([relay-risk.md](relay-risk.md)): rules on engine-reported tap metadata (wallet-tap bursts; optional near-no-PIN-limit bursts and slow reads). Flagged payments are held for review, and preflight WARNs until reviewed. Capped at WARN | Sees only metadata the engine exposes, on this device. False positives are expected. Never declines. Real relay defenses live in the card, kernel, and network. |
 
 ## Out of scope
 

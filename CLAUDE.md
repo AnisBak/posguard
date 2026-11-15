@@ -203,9 +203,9 @@ Keep these current; they are part of the deliverable:
 
 ### M2 — Devices, relay flags, assessment, distribution
 - [ ] `posguard-devices` watchdog (with fake peripherals)
-- [ ] Relay-risk flags (experimental)
+- [x] Relay-risk flags (experimental) (scenario 7 in the demo; emulator run pending)
 - [ ] `posguard-assess` CLI + Gradle plugin; report on demo app and public apps
-- [ ] Webhook sink
+- [x] Webhook sink
 - [ ] Benchmarks
 - [ ] Publish to Maven Central; scenarios 6–8
 

@@ -7,6 +7,7 @@ posguard is an open-source Android toolkit that helps payment-app makers keep ca
 **posguard wraps the certified payment engine. It never replaces it.** Card reading, EMV processing, PIN handling, and card-data encryption stay inside certified payment SDKs and hardware. posguard protects the merchant app around them:
 
 - **Phone-terminal integrity:** device, app, and screen checks (overlays, screen capture, risky accessibility services, root, emulator, debugger) before payment acceptance opens.
+- **Relay-risk flags (experimental):** rules on engine-reported tap metadata, such as a burst of phone-wallet taps, that hold an approved payment for the merchant's review. Never a decline.
 - **Outage-safe transaction journal:** a payment is never lost and never charged twice, even if the app crashes or the network drops mid-payment.
 - **Secure telemetry:** error and event reporting that strips card-like data before it leaves the device, with pluggable sinks including a signed HTTPS webhook.
 - **Mock payment engine and demo app:** "Sunrise Market", a fictional small grocer, that runs fully offline.
@@ -42,7 +43,7 @@ A fictional food stand that runs fully offline, using a mock payment engine and 
 
 Milestone 1: the libraries and the demo are done, and demo scenarios 1–5 have been verified on an Android 16 (API 36) emulator. First release: [v0.1.0](docs/releases/v0.1.0.md). Real-device checks are next. See [CHANGELOG.md](CHANGELOG.md).
 
-Docs: [architecture](docs/architecture.md) · [threat model](docs/threat-model.md) · [integrity signals](docs/integrity.md) · [ledger](docs/ledger.md) · [event schema](docs/event-schema.md) · [policy defaults](docs/policy-defaults.md) · [decisions](docs/decisions/)
+Docs: [architecture](docs/architecture.md) · [threat model](docs/threat-model.md) · [integrity signals](docs/integrity.md) · [ledger](docs/ledger.md) · [event schema](docs/event-schema.md) · [policy defaults](docs/policy-defaults.md) · [relay-risk flags](docs/relay-risk.md) · [decisions](docs/decisions/)
 
 ## Quick start (under 5 minutes)
 

@@ -25,6 +25,9 @@
 **5 · App crashes mid-payment (25 s).** In Demo controls, tap **5 · App crashes mid-payment**. Take payment, then tap card. The app closes for real. Reopen it.
 "The app was killed right after the engine charged the card, before the result was saved. On relaunch, posguard finds the unfinished payment in its journal and resolves it with the engine." Point at the banner **Recovered $5.75 payment: approved, charged 1×**, then at **History**.
 
+**7 · Burst of wallet taps (20 s, optional).** In Demo controls, tap **7 · Burst of wallet taps**. The banner says two phone-wallet taps were just processed. Take payment, then tap card.
+"Three wallet taps in a row is a pattern linked to relay fraud, where a criminal forwards someone else's card or phone to this terminal. posguard's experimental check doesn't decline anything. The payment is approved but **held for review**, so the merchant can check before handing over goods." Tap **Reviewed, complete sale**.
+
 **Close (15 s).** Open Demo controls, tap **Log an error containing a test card number**, and show `[REDACTED_PAN]` in the telemetry panel.
 "Every event is scrubbed before it leaves the device. posguard is Apache-2.0, works with any certified engine, and doesn't touch card data or claim PCI certification."
 
@@ -35,4 +38,5 @@
 **Notes for presenters**
 - Overlay and recording are *simulated* so the demo works anywhere. The real detectors run too ([integrity.md](integrity.md)).
 - The demo policy (`demo-app/src/main/assets/demo-policy.properties`) lists emulator, debug, and unavailable checks as "Noted" instead of warning, so scenario 1 shows Allow on any device. Library defaults are stricter ([policy-defaults.md](policy-defaults.md)).
+- Scenario 7 uses demo-sized thresholds (`demo-app/src/main/assets/demo-relay.properties`: 3 wallet taps in 2 minutes). The library default is 5 in 60 seconds ([relay-risk.md](relay-risk.md)). "Review later" leaves the payment held. The next **Take payment** then shows a warning until it's marked reviewed in Demo controls.
 - **Reset demo** never deletes the payment journal. Unfinished payments are always recovered.

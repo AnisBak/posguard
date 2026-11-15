@@ -13,7 +13,7 @@
 | `ROOT_OR_EMULATOR_SUSPECTED` | WARN | Lightweight heuristics with real false-positive risk (custom ROMs, developer devices). It's a signal, not proof. |
 | `RISKY_ACCESSIBILITY_SERVICE` | WARN | Accessibility malware is a real threat, but blind and low-vision merchants rely on screen readers. Blocking by default could lock out legitimate users. Common assistive services will be on the default allowlist. |
 | `INTEGRITY_UNAVAILABLE` | WARN | A check couldn't run (offline, timeout, unsupported API). This fails safe without crashing and keeps merchants with poor connectivity selling, while logging the gap. Apps with stricter risk tolerance can set BLOCK (fail closed). |
-| `RELAY_RISK_PATTERN` | WARN, **capped** | Experimental. It flags payments and holds them for review, and must never decline a payment on its own. `GuardPolicy` rejects BLOCK for this reason. |
+| `RELAY_RISK_PATTERN` | WARN, **capped** | Experimental. It flags payments and holds them for review, and must never decline a payment on its own. `GuardPolicy` rejects BLOCK for this reason. Raised by `RelayRiskMonitor.signal` while a flagged payment awaits review. Rule thresholds are in [relay-risk.md](relay-risk.md). |
 
 ## How the verdict is chosen
 
