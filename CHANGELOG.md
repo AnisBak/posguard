@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-15
+
+EBT readiness (simulator) and Milestone 2. Release notes: [docs/releases/v0.2.0.md](docs/releases/v0.2.0.md).
+
 ### Changed
 - `EngineResult.Authorized`, `EngineStatus.Authorized`, and `TransactionRecord` have a new optional `approvedAmount` for partial approvals. Ledger schema v3 adds a nullable column (non-destructive 2→3 migration, tested against the committed v2 schema).
 - Demo catalog items have EBT categories. "Coffee" and "Sandwich" are now "Hot coffee" and "Hot sandwich".
