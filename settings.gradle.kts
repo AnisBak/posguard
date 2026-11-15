@@ -33,5 +33,6 @@ include(
     ":posguard-telemetry",
     ":posguard-ebt",
     ":mock-payment-engine",
+    ":ebt-simulator",
     ":demo-app",
 )
