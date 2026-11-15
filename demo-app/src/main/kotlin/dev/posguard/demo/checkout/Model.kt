@@ -3,21 +3,35 @@ package dev.posguard.demo.checkout
 import dev.posguard.core.ledger.Money
 import dev.posguard.core.ledger.TxnId
 import dev.posguard.core.verdict.GuardVerdict
+import dev.posguard.ebt.BasketLine
+import dev.posguard.ebt.BasketSplit
+import dev.posguard.ebt.EbtLegResult
+import dev.posguard.ebt.TenderLeg
 
-/** Fictional Sunrise Market catalog. Prices in cents (USD). */
-data class Product(val id: String, val name: String, val emoji: String, val priceCents: Long)
+/**
+ * Fictional Sunrise Market catalog. Prices in cents (USD). [category] is looked
+ * up in the EBT eligibility config (assets/demo-ebt.properties), never decided here.
+ */
+data class Product(val id: String, val name: String, val emoji: String, val priceCents: Long, val category: String)
 
 object Catalog {
     val products: List<Product> = listOf(
-        Product("coffee", "Coffee", "☕", 250),
-        Product("bagel", "Bagel", "🥯", 325),
-        Product("bananas", "Bananas", "🍌", 199),
-        Product("juice", "Orange juice", "🧃", 399),
-        Product("sandwich", "Sandwich", "🥪", 750),
-        Product("muffin", "Muffin", "🧁", 299),
+        Product("coffee", "Hot coffee", "☕", 250, "hot_food"),
+        Product("bagel", "Bagel", "🥯", 325, "bakery"),
+        Product("bananas", "Bananas", "🍌", 199, "produce"),
+        Product("juice", "Orange juice", "🧃", 399, "beverages"),
+        Product("sandwich", "Hot sandwich", "🥪", 750, "hot_food"),
+        Product("muffin", "Muffin", "🧁", 299, "bakery"),
+        Product("soda", "Soda", "🥤", 199, "soda"),
+        Product("soap", "Dish soap", "🧼", 425, "household"),
     )
 
     fun byId(id: String): Product? = products.firstOrNull { it.id == id }
+
+    /** The cart as EBT basket lines: item data only. */
+    fun basket(cart: Map<String, Int>): List<BasketLine> = cart.mapNotNull { (id, qty) ->
+        byId(id)?.let { BasketLine(it.id, it.category, Money(it.priceCents, "USD"), qty) }
+    }
 }
 
 /** Demo-controls scenarios (CLAUDE.md §10, plus extra engine failure modes). */
@@ -28,6 +42,10 @@ enum class DemoScenario(val label: String) {
     NETWORK_DROP("4 · Network drops after submit"),
     APP_CRASH("5 · App crashes mid-payment"),
     RELAY_BURST("7 · Burst of wallet taps"),
+    EBT_PURCHASE("9 · EBT purchase (chip fails → tap, partial)"),
+    EBT_MAGSTRIPE_CARD("EBT: magstripe-only card"),
+    EBT_CHIP_APP_UNKNOWN("EBT: reader lacks SNAP chip app"),
+    EBT_NO_BALANCE("EBT: no SNAP balance"),
     DECLINE("Card declined"),
     ENGINE_CRASH("Payment engine crash"),
     TIMEOUT("Engine timeout (nothing charged)"),
@@ -65,6 +83,23 @@ sealed interface PaymentPhase {
         val engineReference: String?,
         val processorCharges: Int,
     ) : PaymentPhase
+
+    // --- EBT (scenario 9). Simulator only: no card data, no PIN in this app. ---
+
+    /** The basket split into SNAP-eligible and other items, before any card is read. */
+    data class EbtSplit(val split: BasketSplit, val legs: List<TenderLeg>) : PaymentPhase
+
+    /** Card entry in progress. [log] lists prompts and fallbacks so far. */
+    data class EbtProcessing(val log: List<String>) : PaymentPhase
+
+    /** SNAP paid its part. [remaining] (non-eligible items, plus any shortfall) goes to card next. */
+    data class EbtRemainder(val snap: EbtLegResult.Approved, val remaining: TenderLeg, val log: List<String>) : PaymentPhase
+
+    /** Sale finished. [receiptLines] is the screen version: balances are masked. */
+    data class EbtDone(val receiptLines: List<String>, val log: List<String>) : PaymentPhase
+
+    /** The EBT leg didn't go through (declined or unreadable). Nothing was charged to SNAP. */
+    data class EbtFailed(val title: String, val body: String, val log: List<String>) : PaymentPhase
 }
 
 sealed interface Screen {

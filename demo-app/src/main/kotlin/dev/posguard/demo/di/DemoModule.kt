@@ -7,8 +7,12 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dev.posguard.core.PosGuard
 import dev.posguard.core.ledger.TransactionLedger
+import dev.posguard.core.ledger.combinedStatusSource
 import dev.posguard.core.policy.GuardPolicy
 import dev.posguard.demo.DemoThreats
+import dev.posguard.ebt.EbtCheckout
+import dev.posguard.ebt.EbtConfig
+import dev.posguard.ebtsim.EbtSimulator
 import dev.posguard.integrity.IntegrityConfig
 import dev.posguard.integrity.PosGuardIntegrity
 import dev.posguard.integrity.relay.RelayRiskConfig
@@ -38,6 +42,7 @@ object DemoModule {
 
     const val DEMO_POLICY_ASSET: String = "demo-policy.properties"
     const val DEMO_RELAY_ASSET: String = "demo-relay.properties"
+    const val DEMO_EBT_ASSET: String = "demo-ebt.properties"
 
     @Provides @Singleton
     fun integrity(app: Application): PosGuardIntegrity = PosGuardIntegrity.install(app, IntegrityConfig())
@@ -60,9 +65,31 @@ object DemoModule {
         .latency(800.milliseconds)
         .build()
 
+    /** DEMO — NOT A REAL EBT PROCESSOR. Fictional cards and balances; no card data, no PIN. */
     @Provides @Singleton
-    fun ledger(app: Application, engine: MockPaymentEngine, telemetry: PosGuardTelemetry): TransactionLedger =
-        PosGuardLedger.Builder(app, engine).addListener(telemetry).build()
+    fun ebtSimulator(): EbtSimulator = EbtSimulator.Builder().latency(600.milliseconds).build()
+
+    /** One ledger for card and EBT legs. Recovery asks both engines (see combinedStatusSource). */
+    @Provides @Singleton
+    fun ledger(
+        app: Application,
+        engine: MockPaymentEngine,
+        ebtSimulator: EbtSimulator,
+        telemetry: PosGuardTelemetry,
+    ): TransactionLedger =
+        PosGuardLedger.Builder(app, combinedStatusSource(engine, ebtSimulator)).addListener(telemetry).build()
+
+    /** EBT checkout with the demo's example eligibility config (fictional jurisdiction). */
+    @Provides @Singleton
+    fun ebtCheckout(
+        app: Application,
+        ledger: TransactionLedger,
+        ebtSimulator: EbtSimulator,
+        telemetry: PosGuardTelemetry,
+    ): EbtCheckout {
+        val config = app.assets.open(DEMO_EBT_ASSET).use { EbtConfig.fromProperties(Properties().apply { load(it) }) }
+        return EbtCheckout(ledger, ebtSimulator, config, listeners = listOf(telemetry))
+    }
 
     /** Embedded mock integrity server: the demo works fully offline. */
     @Provides @Singleton

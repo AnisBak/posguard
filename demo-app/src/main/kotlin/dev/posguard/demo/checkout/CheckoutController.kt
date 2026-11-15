@@ -3,6 +3,8 @@ package dev.posguard.demo.checkout
 import dev.posguard.core.PosGuard
 import dev.posguard.core.ledger.EngineResult
 import dev.posguard.core.ledger.EngineStatus
+import dev.posguard.core.ledger.EngineStatusSource
+import dev.posguard.core.ledger.combinedStatusSource
 import dev.posguard.core.ledger.Money
 import dev.posguard.core.ledger.RecoveryOutcome
 import dev.posguard.core.ledger.Tender
@@ -13,6 +15,18 @@ import dev.posguard.core.ledger.TxnOutcome
 import dev.posguard.core.ledger.TxnState
 import dev.posguard.core.verdict.GuardVerdict
 import dev.posguard.demo.DemoThreats
+import dev.posguard.ebt.EbtCheckout
+import dev.posguard.ebt.EbtEntryMode
+import dev.posguard.ebt.EbtLegResult
+import dev.posguard.ebt.EbtReceipt
+import dev.posguard.ebt.EbtReceiptLeg
+import dev.posguard.ebt.EbtTenderPlanner
+import dev.posguard.ebt.EntryPrompt
+import dev.posguard.ebt.MerchantInfo
+import dev.posguard.ebtsim.EbtSimScenario
+import dev.posguard.ebtsim.EbtSimulator
+import dev.posguard.ebtsim.SimEbtCard
+import dev.posguard.ebtsim.SimCardType
 import dev.posguard.integrity.relay.EntryMode
 import dev.posguard.integrity.relay.FlaggedTap
 import dev.posguard.integrity.relay.RelayRiskAssessment
@@ -40,6 +54,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Clock
+import java.time.ZoneId
 
 /**
  * Checkout logic for the Sunrise Market demo, following the integration flow
@@ -47,6 +62,9 @@ import java.time.Clock
  *
  * recover → preflight → begin → markSubmitted → charge(same key) → markResult
  *   → relay-risk check (hold for review if flagged) → complete
+ *
+ * EBT (scenario 9): preflight → split basket → SNAP leg via EbtCheckout
+ *   (chip-first entry, fallback) → rest by card → receipt. Simulator only.
  *
  * Kept free of Android UI so every demo scenario can be unit-tested.
  */
@@ -60,6 +78,8 @@ class CheckoutController(
     private val telemetry: PosGuardTelemetry,
     private val events: InMemorySink,
     private val relay: RelayRiskMonitor,
+    private val ebt: EbtCheckout,
+    private val ebtSim: EbtSimulator,
     private val resetStore: ResetStore,
     private val scheduleRecovery: () -> Unit,
     private val processKiller: () -> Unit,
@@ -71,6 +91,9 @@ class CheckoutController(
     private val resetAt = MutableStateFlow(resetStore.resetAtMillis)
 
     @Volatile private var crashNextPayment = false
+
+    /** Asks both engines, so a pending EBT leg is never judged by the card engine alone. */
+    private val statusSource: EngineStatusSource = combinedStatusSource(engine, ebtSim)
 
     /** Transactions since the last "Reset demo", newest first. */
     val history: Flow<List<TransactionRecord>> =
@@ -167,6 +190,7 @@ class CheckoutController(
     /** Restores the (simulated) network and resolves pending payments by idempotency key. */
     suspend fun reconnect() {
         engine.reconnect()
+        ebtSim.reconnect()
         recover(startup = false)
         val payment = state.value.screen as? Screen.Payment ?: return
         val txnId = (payment.phase as? PaymentPhase.Unknown)?.txnId ?: return
@@ -185,6 +209,152 @@ class CheckoutController(
     suspend fun markReviewed(txnId: TxnId) {
         relay.markReviewed(txnId)
         if (ledger.get(txnId)?.state == TxnState.AUTHORIZED) ledger.markCompleted(txnId)
+    }
+
+    // --- EBT (scenario 9) -------------------------------------------------------------------
+
+    /** "Pay with EBT": shows the SNAP split before any card is read. */
+    fun startEbt() = state.update {
+        val payment = it.screen as? Screen.Payment ?: return@update it
+        if (payment.phase != PaymentPhase.ReadyToTap) return@update it
+        val split = ebt.split(Catalog.basket(it.cart))
+        it.copy(screen = payment.copy(phase = PaymentPhase.EbtSplit(split, EbtTenderPlanner.plan(split))))
+    }
+
+    /** Charges the SNAP leg: chip first, with fallback, through the ledger. */
+    suspend fun payEbt() {
+        val phase = (state.value.screen as? Screen.Payment)?.phase as? PaymentPhase.EbtSplit ?: return
+        val snapLeg = phase.legs.firstOrNull { it.tender == Tender.EBT_SNAP } ?: return
+        val log = mutableListOf<String>()
+        setPhase(PaymentPhase.EbtProcessing(log.toList()))
+
+        val result = ebt.payLeg(snapLeg) { prompt ->
+            log += promptText(prompt)
+            setPhase(PaymentPhase.EbtProcessing(log.toList()))
+        }
+        when (result) {
+            is EbtLegResult.Approved -> {
+                log += "Customer entered PIN on the engine's secure PIN entry (simulated)"
+                log += if (result.isPartial) {
+                    "SNAP approved ${formatCents(result.approved.amountCents)} of " +
+                        "${formatCents(result.requested.amountCents)} (partial approval)"
+                } else {
+                    "SNAP approved ${formatCents(result.approved.amountCents)}"
+                }
+                val remaining = EbtTenderPlanner.afterSnapApproval(snapLeg, result.approved, phase.legs.drop(1))
+                if (remaining.isEmpty()) {
+                    ledger.markCompleted(result.txnId)
+                    showReceipt(listOf(EbtReceipt.leg(result)), result, log)
+                } else {
+                    setPhase(PaymentPhase.EbtRemainder(result, remaining.single(), log.toList()))
+                }
+            }
+            is EbtLegResult.Declined -> {
+                ledger.markCompleted(result.txnId)
+                setPhase(
+                    PaymentPhase.EbtFailed(
+                        "❌ SNAP declined",
+                        "Decline code ${result.declineCode ?: "-"} (simulated). Nothing was taken from SNAP. Ask for another tender.",
+                        log.toList(),
+                    ),
+                )
+                endEbtScenario()
+            }
+            is EbtLegResult.CardUnreadable -> {
+                log += "No allowed entry mode could read the card"
+                setPhase(
+                    PaymentPhase.EbtFailed(
+                        "⚠ Card could not be read",
+                        "Tried ${result.attempts.joinToString(" → ") { modeLabel(it.mode) }}. posguard never falls back to " +
+                            "typing the card number. Nothing was charged. Ask for another tender.",
+                        log.toList(),
+                    ),
+                )
+                endEbtScenario()
+            }
+            is EbtLegResult.Unknown -> pending(result.txnId)
+        }
+    }
+
+    /** Charges the non-SNAP rest (and any partial-approval shortfall) by card. */
+    suspend fun payRemainderByCard() {
+        val phase = (state.value.screen as? Screen.Payment)?.phase as? PaymentPhase.EbtRemainder ?: return
+        setPhase(PaymentPhase.Processing)
+        val id = ledger.begin(phase.remaining.amount, Tender.CARD)
+        val record = checkNotNull(ledger.get(id))
+        ledger.markSubmitted(id)
+        val result = try {
+            engine.charge(ChargeRequest(record.amount, record.tender, record.idempotencyKey))
+        } catch (_: MockEngineCrashException) {
+            EngineResult.Unknown
+        }
+        ledger.markResult(id, result)
+        // The SNAP part is finished whatever happens to the card part.
+        if (ledger.get(phase.snap.txnId)?.state == TxnState.AUTHORIZED) ledger.markCompleted(phase.snap.txnId)
+        val log = phase.log + "Card for the rest: ${formatCents(phase.remaining.amount.amountCents)}"
+        when (result) {
+            is EngineResult.Authorized -> {
+                ledger.markCompleted(id)
+                val cardLeg = EbtReceiptLeg(
+                    Tender.CARD, phase.remaining.amount, phase.remaining.amount,
+                    codedTransactionNumber = result.engineReference,
+                )
+                showReceipt(listOf(EbtReceipt.leg(phase.snap), cardLeg), phase.snap, log)
+            }
+            is EngineResult.Declined -> {
+                ledger.markCompleted(id)
+                setPhase(
+                    PaymentPhase.EbtFailed(
+                        "❌ Card declined for the rest",
+                        "SNAP paid ${formatCents(phase.snap.approved.amountCents)}. " +
+                            "Collect ${formatCents(phase.remaining.amount.amountCents)} another way.",
+                        log,
+                    ),
+                )
+                endEbtScenario()
+            }
+            EngineResult.Unknown -> pending(id)
+        }
+    }
+
+    private suspend fun showReceipt(legs: List<EbtReceiptLeg>, snap: EbtLegResult.Approved, log: List<String>) {
+        val receipt = EbtReceipt(MERCHANT, clock.instant(), legs, snap.balance)
+        // On the POS screen balances are masked: they belong on the customer receipt only.
+        setPhase(PaymentPhase.EbtDone(receipt.lines(ZoneId.systemDefault(), includeBalance = false), log))
+        endEbtScenario()
+    }
+
+    /** A leg with an unknown result: same path as a card payment (scenario 4). */
+    private fun pending(id: TxnId) {
+        scheduleRecovery()
+        setPhase(PaymentPhase.Unknown(id))
+        state.update { it.copy(startup = StartupState.Pending(1)) }
+        clearOneShotArmed()
+    }
+
+    /** EBT scenarios last for one EBT sale. The next customer gets the default fictional card. */
+    private suspend fun endEbtScenario() {
+        if (state.value.armed.none { it in EBT_SCENARIOS }) return
+        ebtSim.presentCard(DEFAULT_EBT_CARD)
+        ebtSim.setNextScenario(EbtSimScenario.NORMAL)
+        state.update { it.copy(armed = it.armed - EBT_SCENARIOS) }
+    }
+
+    private fun promptText(prompt: EntryPrompt.Present): String {
+        val action = when (prompt.mode) {
+            EbtEntryMode.CHIP_INSERT -> "Insert card (chip)"
+            EbtEntryMode.CHIP_TAP -> "Tap card (contactless)"
+            EbtEntryMode.MAGSTRIPE -> "Swipe card (magstripe fallback)"
+        }
+        val from = prompt.fallbackFrom ?: return action
+        val why = from.failure.name.lowercase().replace('_', ' ')
+        return "${modeLabel(from.mode)} failed ($why) → $action"
+    }
+
+    private fun modeLabel(mode: EbtEntryMode): String = when (mode) {
+        EbtEntryMode.CHIP_INSERT -> "Chip insert"
+        EbtEntryMode.CHIP_TAP -> "Tap"
+        EbtEntryMode.MAGSTRIPE -> "Swipe"
     }
 
     private suspend fun submitAndRecord(id: TxnId, crashAllowed: Boolean) {
@@ -263,7 +433,7 @@ class CheckoutController(
         }
         TxnState.UNKNOWN, TxnState.CREATED -> {
             // Still pending: SAFE_TO_RESUBMIT if the engine confirmed nothing was processed.
-            val safe = engine.queryStatusIsNotProcessed(record)
+            val safe = statusSource.queryStatus(record.idempotencyKey) == EngineStatus.NotProcessed
             if (safe) PaymentPhase.SafeToResubmit(id) else PaymentPhase.Unknown(id)
         }
         else -> PaymentPhase.Unknown(id)
@@ -331,6 +501,15 @@ class CheckoutController(
             }
             DemoScenario.DEVICE_INTEGRITY_FAIL ->
                 integrityServer.verdict = IntegrityVerdict.HEALTHY.copy(deviceRecognition = emptySet())
+            DemoScenario.EBT_PURCHASE -> {
+                ebtSim.presentCard(SCENARIO_9_CARD)
+                ebtSim.setNextScenario(EbtSimScenario.CHIP_FAILS_ONCE)
+                state.update { it.copy(cart = SCENARIO_9_BASKET, screen = Screen.Shop) }
+                showBanner("Scenario 9: basket loaded (food, soda, soap, hot coffee). Take payment → Pay with EBT.")
+            }
+            DemoScenario.EBT_MAGSTRIPE_CARD -> ebtSim.presentCard(EbtSimulator.Cards.MAGSTRIPE_ONLY)
+            DemoScenario.EBT_CHIP_APP_UNKNOWN -> ebtSim.setNextScenario(EbtSimScenario.CHIP_APP_NOT_RECOGNIZED)
+            DemoScenario.EBT_NO_BALANCE -> ebtSim.presentCard(EbtSimulator.Cards.EMPTY_SNAP)
         }
         state.update { it.copy(armed = it.armed + scenario) }
     }
@@ -359,6 +538,7 @@ class CheckoutController(
         disarmAll()
         relay.clear()
         engine.reset()
+        ebtSim.reset()
         events.clear()
         val now = clock.millis()
         resetStore.resetAtMillis = now
@@ -376,8 +556,10 @@ class CheckoutController(
         )
     }
 
-    private fun disarmAll() {
+    private suspend fun disarmAll() {
         threats.clear()
+        ebtSim.presentCard(DEFAULT_EBT_CARD)
+        ebtSim.setNextScenario(EbtSimScenario.NORMAL)
         crashNextPayment = false
         engine.setNextScenario(engine.defaultScenario)
         engine.setNextTapProfile(engine.defaultTapProfile)
@@ -395,14 +577,13 @@ class CheckoutController(
         it.copy(screen = payment.copy(phase = phase))
     }
 
-    private suspend fun chargesFor(record: TransactionRecord): Int =
-        engine.processedCharges().count { it.idempotencyKey == record.idempotencyKey.value }
+    private suspend fun chargesFor(record: TransactionRecord): Int = when (record.tender) {
+        Tender.CARD -> engine.processedCharges().count { it.idempotencyKey == record.idempotencyKey.value }
+        else -> ebtSim.processed().count { it.idempotencyKey == record.idempotencyKey.value }
+    }
 
     private suspend fun declineCodeFor(record: TransactionRecord): String? =
         engine.processedCharges().firstOrNull { it.idempotencyKey == record.idempotencyKey.value }?.declineCode
-
-    private suspend fun MockPaymentEngine.queryStatusIsNotProcessed(record: TransactionRecord): Boolean =
-        queryStatus(record.idempotencyKey) == EngineStatus.NotProcessed
 
     /** observeRecent's first emission is the current list. */
     private suspend fun TransactionLedger.recentByKey(key: String): TransactionRecord? =
@@ -419,5 +600,21 @@ class CheckoutController(
         private const val PRERUN_TAPS = 2
         private const val PRERUN_CENTS = 250L
         private val WALLET_TAP = MockTapInfo(MockEntryMode.CONTACTLESS_WALLET)
+
+        private val EBT_SCENARIOS = setOf(
+            DemoScenario.EBT_PURCHASE, DemoScenario.EBT_MAGSTRIPE_CARD,
+            DemoScenario.EBT_CHIP_APP_UNKNOWN, DemoScenario.EBT_NO_BALANCE,
+        )
+
+        /** Fictional store details printed on receipts. */
+        val MERCHANT = MerchantInfo("Sunrise Market", "1 Example Way, Springfield (fictional)")
+
+        val DEFAULT_EBT_CARD: SimEbtCard = EbtSimulator.Cards.CHIP_CONTACTLESS
+
+        /** Scenario 9: SNAP balance below the eligible total, so the approval is partial. */
+        val SCENARIO_9_CARD = SimEbtCard("Chip + tap card, $5.00 SNAP (fictional)", SimCardType.CHIP_CONTACTLESS, snapCents = 500)
+
+        /** Eligible: bananas ×2, juice ($7.97). Not eligible: soda (restricted), soap, hot coffee ($8.74). */
+        val SCENARIO_9_BASKET = mapOf("bananas" to 2, "juice" to 1, "soda" to 1, "soap" to 1, "coffee" to 1)
     }
 }

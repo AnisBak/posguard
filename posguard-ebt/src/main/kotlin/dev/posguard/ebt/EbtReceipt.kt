@@ -48,8 +48,14 @@ public data class EbtReceipt(
         require(legs.isNotEmpty()) { "A receipt needs at least one leg." }
     }
 
-    /** Plain-text receipt lines for a printer or an electronic receipt. */
-    public fun lines(zone: ZoneId): List<String> = buildList {
+    /**
+     * Plain-text receipt lines.
+     *
+     * @param includeBalance true for the customer's printed or electronic
+     *   receipt. Use false for anything shown on the POS screen: balances are
+     *   then replaced by a note.
+     */
+    public fun lines(zone: ZoneId, includeBalance: Boolean = true): List<String> = buildList {
         add(merchant.name)
         add(merchant.location)
         add(DATE.withZone(zone).format(at))
@@ -67,14 +73,21 @@ public data class EbtReceipt(
         }
         balance?.let { b ->
             add("")
-            b.snapCents?.let { add("SNAP balance  ${format(it, b.currency)}") }
-            b.cashCents?.let { add("Cash balance  ${format(it, b.currency)}") }
+            if (includeBalance) {
+                b.snapCents?.let { add("SNAP balance  ${format(it, b.currency)}") }
+                b.cashCents?.let { add("Cash balance  ${format(it, b.currency)}") }
+            } else {
+                add(BALANCE_ON_RECEIPT)
+            }
         }
     }
 
     override fun toString(): String = "EbtReceipt(merchant=${merchant.name}, legs=${legs.size}, balance=redacted)"
 
     public companion object {
+        /** Shown instead of balances when [lines] is called with `includeBalance = false`. */
+        public const val BALANCE_ON_RECEIPT: String = "Balance: printed on the customer receipt only"
+
         private val DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.ROOT)
 
         /** Builds a receipt leg from an approved EBT leg. */

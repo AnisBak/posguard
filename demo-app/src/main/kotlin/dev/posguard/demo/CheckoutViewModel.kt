@@ -13,6 +13,8 @@ import dev.posguard.core.verdict.GuardAction
 import dev.posguard.core.verdict.ReasonCode
 import dev.posguard.demo.checkout.CheckoutController
 import dev.posguard.demo.checkout.ResetStore
+import dev.posguard.ebt.EbtCheckout
+import dev.posguard.ebtsim.EbtSimulator
 import dev.posguard.integrity.play.FakeIntegrityVerdictSource
 import dev.posguard.integrity.relay.RelayRiskMonitor
 import dev.posguard.ledger.LedgerRecovery
@@ -34,6 +36,8 @@ class CheckoutViewModel @Inject constructor(
     telemetry: PosGuardTelemetry,
     events: InMemorySink,
     relay: RelayRiskMonitor,
+    ebt: EbtCheckout,
+    ebtSimulator: EbtSimulator,
     private val policy: GuardPolicy,
 ) : ViewModel() {
 
@@ -47,6 +51,8 @@ class CheckoutViewModel @Inject constructor(
         telemetry = telemetry,
         events = events,
         relay = relay,
+        ebt = ebt,
+        ebtSim = ebtSimulator,
         resetStore = PrefsResetStore(app),
         scheduleRecovery = { LedgerRecovery.schedule(app) },
         // Scenario 5: really kill the process, exactly like a crash mid-payment.

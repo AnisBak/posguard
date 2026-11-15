@@ -43,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.activity.compose.LocalActivity
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -287,6 +288,9 @@ private fun PaymentScreen(screen: Screen.Payment, vm: CheckoutViewModel) {
                 Button(onClick = { vm.run { tapCard() } }, modifier = Modifier.fillMaxWidth().height(56.dp)) {
                     Text("Tap card (simulated)")
                 }
+                OutlinedButton(onClick = { vm.controller.startEbt() }, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                    Text("Pay with EBT (simulated)")
+                }
                 OutlinedButton(onClick = { vm.controller.backToShop() }, modifier = Modifier.fillMaxWidth()) { Text("Cancel") }
             }
             PaymentPhase.Processing -> {
@@ -319,6 +323,46 @@ private fun PaymentScreen(screen: Screen.Payment, vm: CheckoutViewModel) {
                 )
                 Button(onClick = { vm.run { resubmit() } }, modifier = Modifier.fillMaxWidth()) { Text("Resubmit (same key)") }
             }
+            is PaymentPhase.EbtSplit -> EbtSplitPanel(phase, vm)
+            is PaymentPhase.EbtProcessing -> {
+                CircularProgressIndicator()
+                EbtLog(phase.log)
+                Text(
+                    "The PIN is entered on the certified engine's secure PIN entry, never in this app.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center,
+                )
+            }
+            is PaymentPhase.EbtRemainder -> {
+                Result(
+                    if (phase.snap.isPartial) "◐ SNAP partially approved" else "✅ SNAP approved",
+                    Color(0xFF15803D),
+                    "SNAP paid ${formatCents(phase.snap.approved.amountCents)}. " +
+                        "Rest due by card: ${formatCents(phase.remaining.amount.amountCents)}",
+                )
+                EbtLog(phase.log)
+                Button(onClick = { vm.run { payRemainderByCard() } }, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                    Text("Charge ${formatCents(phase.remaining.amount.amountCents)} to card")
+                }
+            }
+            is PaymentPhase.EbtDone -> {
+                Result("✅ Sale complete", Color(0xFF15803D), "")
+                EbtLog(phase.log)
+                Text("Receipt (screen copy)", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 12.dp))
+                Text(
+                    phase.receiptLines.joinToString("\n"),
+                    fontFamily = FontFamily.Monospace,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.fillMaxWidth().background(Color(0xFFF5F5F4)).padding(10.dp),
+                )
+                Button(onClick = { vm.controller.finishSale() }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) { Text("Done") }
+            }
+            is PaymentPhase.EbtFailed -> {
+                Result(phase.title, DemoRed, phase.body)
+                EbtLog(phase.log)
+                OutlinedButton(onClick = { vm.controller.backToShop() }, modifier = Modifier.fillMaxWidth()) { Text("Back to shop") }
+            }
             is PaymentPhase.HeldForReview -> {
                 Result(
                     "🔎 Approved · held for review",
@@ -338,6 +382,53 @@ private fun PaymentScreen(screen: Screen.Payment, vm: CheckoutViewModel) {
             Text("Security checks noted:", style = MaterialTheme.typography.labelLarge)
             ReasonList(screen.verdict, vm)
         }
+    }
+}
+
+@Composable
+private fun EbtSplitPanel(phase: PaymentPhase.EbtSplit, vm: CheckoutViewModel) {
+    Text("EBT split · ${phase.split.lines.size} lines", style = MaterialTheme.typography.titleMedium)
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        phase.split.lines.forEach { line ->
+            val p = Catalog.byId(line.line.itemId)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("${p?.emoji ?: ""} ${p?.name ?: line.line.itemId} × ${line.line.quantity}", Modifier.weight(1f))
+                Text(
+                    if (line.snapEligible) "SNAP" else "Other",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .background(if (line.snapEligible) Color(0xFF15803D) else Color.Gray)
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                )
+            }
+            if (!line.snapEligible) {
+                Text(line.reason.explanation, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            }
+        }
+    }
+    Text("SNAP-eligible ${formatCents(phase.split.snapEligibleCents)} · other ${formatCents(phase.split.otherCents)}", fontWeight = FontWeight.Bold)
+    Text(
+        "Example eligibility config for a fictional jurisdiction. Not legal guidance.",
+        style = MaterialTheme.typography.bodySmall,
+        color = Color.Gray,
+    )
+    Spacer(Modifier.height(8.dp))
+    if (phase.split.snapEligibleCents > 0) {
+        Button(onClick = { vm.run { payEbt() } }, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+            Text("Charge ${formatCents(phase.split.snapEligibleCents)} to SNAP")
+        }
+    } else {
+        Text("Nothing in this basket is SNAP-eligible. Pay by card.")
+    }
+    OutlinedButton(onClick = { vm.controller.backToShop() }, modifier = Modifier.fillMaxWidth()) { Text("Cancel") }
+}
+
+@Composable
+private fun EbtLog(log: List<String>) {
+    if (log.isEmpty()) return
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        log.forEach { Text("• $it", style = MaterialTheme.typography.bodySmall) }
     }
 }
 

@@ -47,6 +47,8 @@ dependencies {
     implementation(project(":posguard-ledger"))
     implementation(project(":posguard-telemetry"))
     implementation(project(":mock-payment-engine"))
+    implementation(project(":posguard-ebt"))
+    implementation(project(":ebt-simulator"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

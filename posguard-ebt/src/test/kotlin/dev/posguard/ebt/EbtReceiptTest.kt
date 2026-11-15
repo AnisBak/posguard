@@ -38,6 +38,18 @@ class EbtReceiptTest {
     }
 
     @Test
+    fun `screen version replaces balances with a note`() {
+        val receipt = EbtReceipt(
+            merchant, at,
+            listOf(EbtReceiptLeg(Tender.EBT_SNAP, Money(100, "USD"), Money(100, "USD"))),
+            EbtBalance("USD", 98765, 43210),
+        )
+        val screen = receipt.lines(ZoneOffset.UTC, includeBalance = false)
+        assertTrue(screen.contains(EbtReceipt.BALANCE_ON_RECEIPT))
+        assertFalse(screen.any { it.contains("987") || it.contains("432") })
+    }
+
+    @Test
     fun `toString never shows balances`() {
         val receipt = EbtReceipt(
             merchant, at,
