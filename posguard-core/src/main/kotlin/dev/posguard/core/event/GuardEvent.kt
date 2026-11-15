@@ -44,6 +44,25 @@ public sealed interface GuardEvent {
         val id: TxnId,
         override val at: Instant,
     ) : GuardEvent
+
+    /**
+     * An EBT card could not be read in mode [from], so checkout moved to mode
+     * [to], or gave up when [to] is null. Modes and [reason] are names such as
+     * `"CHIP_INSERT"` and `"CHIP_READ_FAILED"`. No card data and no amounts.
+     */
+    public data class EbtEntryFallback(
+        val id: TxnId,
+        val from: String,
+        val to: String?,
+        val reason: String,
+        override val at: Instant,
+    ) : GuardEvent
+
+    /** An EBT leg was approved for less than requested. Amounts are deliberately left out. */
+    public data class EbtPartialApproval(
+        val id: TxnId,
+        override val at: Instant,
+    ) : GuardEvent
 }
 
 /**

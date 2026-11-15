@@ -139,4 +139,29 @@ class TelemetryEventTest {
         assertEquals(mapOf("txnId" to id), reviewed.attributes)
         assertEquals("RELAY_RISK_REVIEWED", JSONObject(reviewed.toJson()).getString("type"))
     }
+
+    @Test
+    fun `EBT events carry ids and mode names only, never amounts`() {
+        val id = "3f0c2a9e-0000-4000-8000-000000000001"
+        val fallback = TelemetryEvent.from(
+            GuardEvent.EbtEntryFallback(TxnId(id), "CHIP_INSERT", "CHIP_TAP", "CHIP_READ_FAILED", now),
+            device,
+            "e-3",
+        ).scrubbed(Scrubber.Default)
+        assertEquals(EventType.EBT_ENTRY_FALLBACK, fallback.type)
+        assertEquals(
+            mapOf("txnId" to id, "from" to "CHIP_INSERT", "to" to "CHIP_TAP", "reason" to "CHIP_READ_FAILED"),
+            fallback.attributes,
+        )
+
+        val gaveUp = TelemetryEvent.from(GuardEvent.EbtEntryFallback(TxnId(id), "MAGSTRIPE", null, "CHIP_READ_FAILED", now), device, "e-4")
+        assertEquals("NONE", gaveUp.attributes["to"])
+
+        val partial = TelemetryEvent.from(GuardEvent.EbtPartialApproval(TxnId(id), now), device, "e-5").scrubbed(Scrubber.Default)
+        assertEquals(EventType.EBT_PARTIAL_APPROVAL, partial.type)
+        assertEquals(mapOf("txnId" to id), partial.attributes)
+        val json = JSONObject(partial.toJson())
+        assertEquals("EBT_PARTIAL_APPROVAL", json.getString("type"))
+        assertTrue(!json.has("txn") || json.isNull("txn"))
+    }
 }

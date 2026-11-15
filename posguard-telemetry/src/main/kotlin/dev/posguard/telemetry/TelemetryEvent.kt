@@ -20,6 +20,12 @@ public enum class EventType {
 
     /** The merchant reviewed a flagged payment. Attributes: `txnId`. */
     RELAY_RISK_REVIEWED,
+
+    /** An EBT card read failed and checkout moved to the next entry mode. Attributes: `txnId`, `from`, `to` (`NONE` when it gave up), `reason`. */
+    EBT_ENTRY_FALLBACK,
+
+    /** An EBT leg was approved for less than requested. Attributes: `txnId`. No amounts or balances. */
+    EBT_PARTIAL_APPROVAL,
 }
 
 /** A ledger state change. Ids are opaque, and no amounts or engine references are included. */
@@ -152,6 +158,25 @@ public data class TelemetryEvent(
             is GuardEvent.RelayRiskReviewed -> TelemetryEvent(
                 eventId = eventId,
                 type = EventType.RELAY_RISK_REVIEWED,
+                timestamp = event.at,
+                device = device,
+                attributes = mapOf("txnId" to event.id.value),
+            )
+            is GuardEvent.EbtEntryFallback -> TelemetryEvent(
+                eventId = eventId,
+                type = EventType.EBT_ENTRY_FALLBACK,
+                timestamp = event.at,
+                device = device,
+                attributes = mapOf(
+                    "txnId" to event.id.value,
+                    "from" to event.from,
+                    "to" to (event.to ?: "NONE"),
+                    "reason" to event.reason,
+                ),
+            )
+            is GuardEvent.EbtPartialApproval -> TelemetryEvent(
+                eventId = eventId,
+                type = EventType.EBT_PARTIAL_APPROVAL,
                 timestamp = event.at,
                 device = device,
                 attributes = mapOf("txnId" to event.id.value),
