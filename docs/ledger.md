@@ -13,6 +13,10 @@ val ledger = PosGuardLedger.Builder(context, engineAdapter /* EngineStatusSource
 
 `engineAdapter` wraps your certified payment SDK and answers "what happened to the payment with this idempotency key?" (`EngineStatusSource.queryStatus`). If your SDK can't query by key, recovery can't guarantee "never charged twice", and you should document that for your merchants.
 
+**More than one engine** (for example, EBT legs on an EBT-capable engine and card legs on a card engine): pass `combinedStatusSource(cardEngine, ebtEngine)`. Asking only one engine would report "never processed" for the other engine's payments, and recovery could void a charged payment. The combined source says `NotProcessed` only when every engine agrees. A known answer from any engine wins, and any unreachable engine makes the result `Unreachable`.
+
+**Partial approvals:** when the engine approves less than requested (for example, an EBT SNAP balance that's too low), report it as `EngineResult.Authorized(reference, approvedAmount = Money(...))`. The record keeps the requested `amount` and the actual `approvedAmount`. An approved amount above the request or in another currency is rejected. During recovery, such an impossible answer is ignored and the full amount is kept.
+
 ## Checkout flow
 
 ```kotlin
@@ -58,4 +62,4 @@ With a custom `Configuration.Provider`, remove WorkManager's default initializer
 
 ## What is stored
 
-Only id, idempotency key, amount, currency, tender, state, timestamps, engine reference, **outcome** (`APPROVED`/`DECLINED`, so a COMPLETED record still shows the engine's answer), and internal bookkeeping (resubmit flag, version). **Never** card numbers, PINs, track data, or CVV. The table has no column for them. The schema is exported to `posguard-ledger/schemas/`. Destructive migrations are never used. v1 → v2 added `outcome`: AUTHORIZED and DECLINED rows are backfilled, and COMPLETED rows from v1 keep a null outcome because v1 didn't record it.
+Only id, idempotency key, amount, currency, tender, state, timestamps, engine reference, **outcome** (`APPROVED`/`DECLINED`, so a COMPLETED record still shows the engine's answer), **approved amount** (only for partial approvals), and internal bookkeeping (resubmit flag, version). **Never** card numbers, PINs, track data, or CVV. The table has no column for them. The schema is exported to `posguard-ledger/schemas/`. Destructive migrations are never used. v1 → v2 added `outcome`: AUTHORIZED and DECLINED rows are backfilled, and COMPLETED rows from v1 keep a null outcome because v1 didn't record it. v2 → v3 added a nullable `approvedAmountCents`, and existing rows keep null (full amount).

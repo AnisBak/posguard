@@ -1,4 +1,4 @@
-# Demo script: Sunrise Market (about 2 minutes)
+# Demo script: Sunrise Market (about 2 minutes, plus scenario 9 for EBT audiences)
 
 > **DEMO — NOT A REAL PAYMENT.** Everything runs offline on the phone: a mock payment engine, a mock integrity server, and simulated threats. No card data is used.
 
@@ -7,7 +7,9 @@
 ---
 
 **Opening (15 s).**
-"Phones are becoming payment terminals for small shops. The certified payment engine protects the card. Nothing protects the *app around it*: what's on screen, and what happens when the network or the app fails mid-payment. posguard is an open-source toolkit for that layer."
+"Phones are becoming payment terminals for small shops. The certified payment engine protects the card. Nothing protects the *app around it*: what's on screen, what happens when the network or the app fails mid-payment, and how the checkout handles new requirements like chip and tap EBT cards. posguard is an open-source toolkit for that layer."
+
+*For grocers, SNAP retailers, or state agencies, open with scenario 9 (EBT), then show 4 (network drop) and 5 (crash).*
 
 **1 · Normal payment (20 s).** Add a coffee and a bagel, then tap **Take payment**.
 "Before the payment screen opens, posguard runs its integrity checks in a fraction of a second. All clear, so the secure payment screen opens. Screenshots are blocked here." Tap **Tap card (simulated)**. Show **Approved · Processor charged 1×**, then tap **Done**.

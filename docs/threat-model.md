@@ -1,4 +1,4 @@
-# Threat model (v1, 2026-11-14)
+# Threat model (v1.2, updated 2026-11-15: T11 relay risk, T12 EBT)
 
 **Scope:** the merchant app that wraps a certified payment engine on an Android phone or POS device. Card reading, EMV, PIN entry, and card-data encryption are inside the certified engine and **out of scope** ([ADR-001](decisions/ADR-001-wrap-not-replace.md)). posguard makes no PCI claim.
 

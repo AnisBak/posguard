@@ -207,7 +207,7 @@ Keep these current; they are part of the deliverable:
 - [x] README, architecture, threat model, demo script (first versions); first tagged release (v0.1.0, 2026-11-14)
 
 ### M2 — Relay flags + webhook
-- [x] Relay-risk flags (experimental) (scenario 7 in the demo; emulator run pending)
+- [x] Relay-risk flags (experimental) (scenario 7 verified on API 36 emulator, 2026-11-15)
 - [x] Webhook sink
 
 ### M3 — EBT readiness (current focus; re-prioritized 2026-11-15 ahead of devices/assess)
@@ -215,7 +215,7 @@ Keep these current; they are part of the deliverable:
 - [x] Ledger records approved amount (partial approvals)
 - [x] `posguard-ebt`: config-driven item eligibility, basket split, tender planner, entry fallback flow, checkout coordinator, receipt fields
 - [x] `ebt-simulator` with fictional cards and failure modes
-- [x] Scenario 9; docs (`docs/ebt.md`, ADR-003) update (emulator run pending)
+- [x] Scenario 9; docs (`docs/ebt.md`, ADR-003) update (verified on API 36 emulator, 2026-11-15; real-device run pending)
 
 ### M4 — Devices, assessment, distribution
 - [ ] `posguard-devices` watchdog (with fake peripherals)

@@ -1,6 +1,6 @@
 # Architecture
 
-> Status (2026-11-14): all M1 modules, including `demo-app`, are implemented and tested. Demo scenarios 1–5 were verified on an emulator.
+> Status (2026-11-15): M1 modules are implemented and tested, and demo scenarios 1–5 were verified on an emulator. M2 added relay-risk flags and the webhook sink. M3 (EBT readiness, the current focus) added `posguard-ebt`, `ebt-simulator`, and demo scenario 9, which have unit tests. Scenarios 7 and 9 were verified on an API 36 emulator on 2026-11-15.
 
 ## Principle: wrap, never replace
 

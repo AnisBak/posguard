@@ -18,6 +18,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   - `combinedStatusSource` in core, so one ledger can recover legs sent to different engines. 3 tests.
   - `GuardEvent.EbtEntryFallback` / `EbtPartialApproval`, and telemetry types `EBT_ENTRY_FALLBACK` / `EBT_PARTIAL_APPROVAL` (no amounts or balances).
   - Demo scenario 9, **EBT purchase**: SNAP split, chip-to-tap fallback, partial approval, the rest by card, and a receipt. Plus magstripe-only card, reader without the SNAP chip app, and empty balance. 5 tests.
+  - Scenarios 7 and 9 verified on the API 36 emulator, with a regression run of scenarios 1, 4, and 5. The README has a scenario 9 GIF (`docs/images/ebt-demo.gif`) and screenshots of scenarios 7 and 9.
   - Docs: `docs/ebt.md` (with facts checked against the proposed rule's text), ADR-003, threat model T12, event schema, architecture, demo script.
 - **Experimental relay-risk flags** (2026-11-15). `RelayRiskMonitor` in `posguard-integrity` runs pluggable `RelayRiskRule`s on non-sensitive `TapMetadata`. Built-in, untuned rules: wallet-tap burst (on by default), near-no-PIN-limit burst and slow card read (off until configured). It keeps a review queue and exposes `relay.signal`, which raises `RELAY_RISK_PATTERN` (capped at WARN) while a review is pending. It has a strict `RelayRiskConfig.fromProperties` loader and never declines. 26 tests. Docs: `docs/relay-risk.md`.
 - `GuardEvent.RelayRiskFlagged` / `RelayRiskReviewed` in core, and telemetry event types `RELAY_RISK_FLAGGED` / `RELAY_RISK_REVIEWED`.
