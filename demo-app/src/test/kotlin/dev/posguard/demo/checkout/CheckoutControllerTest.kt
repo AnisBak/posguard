@@ -12,6 +12,9 @@ import dev.posguard.demo.DemoThreats
 import dev.posguard.demo.di.DemoModule
 import dev.posguard.integrity.play.FakeIntegrityVerdictSource
 import dev.posguard.integrity.play.PlayIntegritySignals
+import dev.posguard.integrity.relay.RelayRiskConfig
+import dev.posguard.integrity.relay.RelayRiskMonitor
+import dev.posguard.integrity.relay.WalletBurstRule
 import dev.posguard.ledger.PosGuardLedger
 import dev.posguard.mockengine.MockPaymentEngine
 import dev.posguard.mockengine.SharedPreferencesMockProcessorStore
@@ -64,9 +67,14 @@ class CheckoutControllerTest {
         val integrityServer = FakeIntegrityVerdictSource()
         val policy: GuardPolicy = context.assets.open(DemoModule.DEMO_POLICY_ASSET)
             .use { GuardPolicy.fromProperties(Properties().apply { load(it) }) }
+        val relay = RelayRiskMonitor(
+            context.assets.open(DemoModule.DEMO_RELAY_ASSET)
+                .use { RelayRiskConfig.fromProperties(Properties().apply { load(it) }) },
+        )
         val guard: PosGuard = PosGuard.Builder(ledger)
             .signals(PlayIntegritySignals.create(integrityServer, ttl = 1.seconds))
             .signals(threats.signals)
+            .signals(relay.signal)
             .policy(policy)
             .build()
         val resetStore = object : ResetStore { override var resetAtMillis = 0L }
@@ -79,6 +87,7 @@ class CheckoutControllerTest {
             integrityServer = integrityServer,
             telemetry = telemetry,
             events = sink,
+            relay = relay,
             resetStore = resetStore,
             scheduleRecovery = { recoveryScheduled++ },
             processKiller = { killed++ },
@@ -275,5 +284,80 @@ class CheckoutControllerTest {
         val json = app.sink.events.value.single().toJson()
         assertTrue(json.contains("[REDACTED_PAN]"))
         assertEquals(false, json.replace(" ", "").contains("4111111111111111"))
+    }
+
+    // --- Scenario 7: relay-risk hold for review ---------------------------------------
+
+    private suspend fun App.armBurstAndTap(): PaymentPhase.HeldForReview {
+        controller.arm(DemoScenario.RELAY_BURST)
+        controller.takePayment()
+        assertTrue((ui.screen as Screen.Payment).verdict is GuardVerdict.Allow)
+        controller.tapCard()
+        return phase as PaymentPhase.HeldForReview
+    }
+
+    @Test
+    fun `scenario 7 - third wallet tap is held for review, never declined, and charged once`() = runTest {
+        val app = App(this).startWithCart()
+        val held = app.armBurstAndTap()
+
+        assertEquals(1, held.processorCharges)
+        assertTrue(held.reasons.single().contains("phone-wallet taps"))
+        assertEquals(TxnState.AUTHORIZED, app.ledger.get(held.txnId)!!.state)
+        assertEquals(listOf(WalletBurstRule.ID), app.controller.heldForReview.value.single().hits.map { it.ruleId })
+        // Two pre-run wallet payments plus the live one: three charges, one per payment.
+        assertEquals(3, app.charges())
+        assertEquals(3, app.engine.processedCharges().map { it.idempotencyKey }.toSet().size)
+        assertEquals(listOf(TxnState.AUTHORIZED, TxnState.COMPLETED, TxnState.COMPLETED), app.history().map { it.state })
+
+        app.controller.completeReviewed()
+        assertEquals(PaymentPhase.Approved(held.engineReference, 1), app.phase)
+        assertEquals(TxnState.COMPLETED, app.ledger.get(held.txnId)!!.state)
+        assertTrue(app.controller.heldForReview.value.isEmpty())
+        assertEquals(emptySet<DemoScenario>(), app.ui.armed)
+    }
+
+    @Test
+    fun `skipping the review makes the next preflight warn until it is reviewed`() = runTest {
+        val app = App(this).startWithCart()
+        val held = app.armBurstAndTap()
+        app.controller.finishSale() // "Review later"
+
+        app.controller.add("coffee")
+        app.controller.takePayment()
+        val flagged = app.ui.screen as Screen.Flagged
+        assertTrue(flagged.verdict is GuardVerdict.Warn)
+        assertEquals(listOf(ReasonCode.RELAY_RISK_PATTERN), flagged.verdict.reasons)
+        assertTrue(flagged.canContinue)
+
+        app.controller.backToShop()
+        app.controller.markReviewed(held.txnId)
+        assertEquals(TxnState.COMPLETED, app.ledger.get(held.txnId)!!.state)
+        app.controller.takePayment()
+        assertTrue((app.ui.screen as Screen.Payment).verdict is GuardVerdict.Allow)
+    }
+
+    @Test
+    fun `reset demo clears payments held for review`() = runTest {
+        val app = App(this).startWithCart()
+        app.armBurstAndTap()
+        app.controller.resetDemo()
+        assertTrue(app.controller.heldForReview.value.isEmpty())
+        app.controller.add("coffee")
+        app.controller.takePayment()
+        assertTrue((app.ui.screen as Screen.Payment).verdict is GuardVerdict.Allow)
+    }
+
+    @Test
+    fun `normal card taps are never held`() = runTest {
+        val app = App(this).startWithCart()
+        repeat(4) {
+            app.controller.add("coffee")
+            app.controller.takePayment()
+            app.controller.tapCard()
+            assertTrue(app.phase is PaymentPhase.Approved)
+            app.controller.finishSale()
+        }
+        assertTrue(app.controller.heldForReview.value.isEmpty())
     }
 }

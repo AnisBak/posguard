@@ -11,6 +11,8 @@ import dev.posguard.core.policy.GuardPolicy
 import dev.posguard.demo.DemoThreats
 import dev.posguard.integrity.IntegrityConfig
 import dev.posguard.integrity.PosGuardIntegrity
+import dev.posguard.integrity.relay.RelayRiskConfig
+import dev.posguard.integrity.relay.RelayRiskMonitor
 import dev.posguard.integrity.play.FakeIntegrityVerdictSource
 import dev.posguard.integrity.play.PlayIntegritySignals
 import dev.posguard.ledger.PosGuardLedger
@@ -35,6 +37,7 @@ import kotlin.time.Duration.Companion.seconds
 object DemoModule {
 
     const val DEMO_POLICY_ASSET: String = "demo-policy.properties"
+    const val DEMO_RELAY_ASSET: String = "demo-relay.properties"
 
     @Provides @Singleton
     fun integrity(app: Application): PosGuardIntegrity = PosGuardIntegrity.install(app, IntegrityConfig())
@@ -72,6 +75,13 @@ object DemoModule {
     fun policy(app: Application): GuardPolicy =
         app.assets.open(DEMO_POLICY_ASSET).use { GuardPolicy.fromProperties(Properties().apply { load(it) }) }
 
+    /** Experimental relay-risk flags, with demo-sized thresholds loaded from assets. */
+    @Provides @Singleton
+    fun relayRisk(app: Application, telemetry: PosGuardTelemetry): RelayRiskMonitor {
+        val config = app.assets.open(DEMO_RELAY_ASSET).use { RelayRiskConfig.fromProperties(Properties().apply { load(it) }) }
+        return RelayRiskMonitor(config, listeners = listOf(telemetry))
+    }
+
     @Provides @Singleton
     fun posGuard(
         ledger: TransactionLedger,
@@ -80,11 +90,13 @@ object DemoModule {
         threats: DemoThreats,
         policy: GuardPolicy,
         telemetry: PosGuardTelemetry,
+        relay: RelayRiskMonitor,
     ): PosGuard = PosGuard.Builder(ledger)
         .signals(integrity.signals())
         // Short TTL so Demo-controls toggles of the mock verdict take effect at once.
         .signals(PlayIntegritySignals.create(integrityServer, includeAppAccessRisk = true, ttl = 2.seconds))
         .signals(threats.signals)
+        .signals(relay.signal) // warns while a flagged payment awaits review
         .policy(policy)
         .addListener(telemetry)
         .build()

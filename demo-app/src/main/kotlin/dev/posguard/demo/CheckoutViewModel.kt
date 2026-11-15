@@ -14,6 +14,7 @@ import dev.posguard.core.verdict.ReasonCode
 import dev.posguard.demo.checkout.CheckoutController
 import dev.posguard.demo.checkout.ResetStore
 import dev.posguard.integrity.play.FakeIntegrityVerdictSource
+import dev.posguard.integrity.relay.RelayRiskMonitor
 import dev.posguard.ledger.LedgerRecovery
 import dev.posguard.mockengine.MockPaymentEngine
 import dev.posguard.telemetry.InMemorySink
@@ -32,6 +33,7 @@ class CheckoutViewModel @Inject constructor(
     integrityServer: FakeIntegrityVerdictSource,
     telemetry: PosGuardTelemetry,
     events: InMemorySink,
+    relay: RelayRiskMonitor,
     private val policy: GuardPolicy,
 ) : ViewModel() {
 
@@ -44,6 +46,7 @@ class CheckoutViewModel @Inject constructor(
         integrityServer = integrityServer,
         telemetry = telemetry,
         events = events,
+        relay = relay,
         resetStore = PrefsResetStore(app),
         scheduleRecovery = { LedgerRecovery.schedule(app) },
         // Scenario 5: really kill the process, exactly like a crash mid-payment.

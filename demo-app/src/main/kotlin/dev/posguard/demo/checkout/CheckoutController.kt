@@ -13,12 +13,19 @@ import dev.posguard.core.ledger.TxnOutcome
 import dev.posguard.core.ledger.TxnState
 import dev.posguard.core.verdict.GuardVerdict
 import dev.posguard.demo.DemoThreats
+import dev.posguard.integrity.relay.EntryMode
+import dev.posguard.integrity.relay.FlaggedTap
+import dev.posguard.integrity.relay.RelayRiskAssessment
+import dev.posguard.integrity.relay.RelayRiskMonitor
+import dev.posguard.integrity.relay.TapMetadata
 import dev.posguard.integrity.play.FakeIntegrityVerdictSource
 import dev.posguard.integrity.play.IntegrityVerdict
 import dev.posguard.mockengine.ChargeRequest
 import dev.posguard.mockengine.MockEngineCrashException
+import dev.posguard.mockengine.MockEntryMode
 import dev.posguard.mockengine.MockPaymentEngine
 import dev.posguard.mockengine.MockScenario
+import dev.posguard.mockengine.MockTapInfo
 import dev.posguard.telemetry.EventType
 import dev.posguard.telemetry.InMemorySink
 import dev.posguard.telemetry.PosGuardTelemetry
@@ -38,7 +45,8 @@ import java.time.Clock
  * Checkout logic for the Sunrise Market demo, following the integration flow
  * in docs/ledger.md:
  *
- * recover → preflight → begin → markSubmitted → charge(same key) → markResult → complete
+ * recover → preflight → begin → markSubmitted → charge(same key) → markResult
+ *   → relay-risk check (hold for review if flagged) → complete
  *
  * Kept free of Android UI so every demo scenario can be unit-tested.
  */
@@ -51,6 +59,7 @@ class CheckoutController(
     private val integrityServer: FakeIntegrityVerdictSource,
     private val telemetry: PosGuardTelemetry,
     private val events: InMemorySink,
+    private val relay: RelayRiskMonitor,
     private val resetStore: ResetStore,
     private val scheduleRecovery: () -> Unit,
     private val processKiller: () -> Unit,
@@ -70,6 +79,9 @@ class CheckoutController(
         }
 
     val telemetryEvents = events.events
+
+    /** Approved payments flagged by relay-risk rules, waiting for the merchant's review. */
+    val heldForReview: StateFlow<List<FlaggedTap>> = relay.pendingReview
 
     /** Call once at app start: recovers pending payments before new ones are allowed. */
     suspend fun start() {
@@ -162,6 +174,19 @@ class CheckoutController(
         setPhase(phaseFor(record, txnId))
     }
 
+    /** "Reviewed, complete sale" on a payment held for review. */
+    suspend fun completeReviewed() {
+        val held = (state.value.screen as? Screen.Payment)?.phase as? PaymentPhase.HeldForReview ?: return
+        markReviewed(held.txnId)
+        setPhase(PaymentPhase.Approved(held.engineReference, held.processorCharges))
+    }
+
+    /** Reviews a held payment from the Demo-controls list (for example after "Review later"). */
+    suspend fun markReviewed(txnId: TxnId) {
+        relay.markReviewed(txnId)
+        if (ledger.get(txnId)?.state == TxnState.AUTHORIZED) ledger.markCompleted(txnId)
+    }
+
     private suspend fun submitAndRecord(id: TxnId, crashAllowed: Boolean) {
         val record = checkNotNull(ledger.get(id))
         ledger.markSubmitted(id)
@@ -178,7 +203,21 @@ class CheckoutController(
         }
         ledger.markResult(id, result)
         when (result) {
-            is EngineResult.Authorized, is EngineResult.Declined -> {
+            is EngineResult.Authorized -> {
+                val assessment = relay.record(tapMetadata(record))
+                if (assessment is RelayRiskAssessment.Flagged) {
+                    // Hold: stays AUTHORIZED until reviewed. posguard never declines on relay risk.
+                    setPhase(
+                        PaymentPhase.HeldForReview(
+                            id, assessment.hits.map { it.explanation }, result.engineReference, chargesFor(record),
+                        ),
+                    )
+                } else {
+                    ledger.markCompleted(id)
+                    setPhase(phaseFor(checkNotNull(ledger.get(id)), id))
+                }
+            }
+            is EngineResult.Declined -> {
                 // The record keeps its outcome (APPROVED / DECLINED) after completion.
                 ledger.markCompleted(id)
                 setPhase(phaseFor(checkNotNull(ledger.get(id)), id))
@@ -191,6 +230,26 @@ class CheckoutController(
             }
         }
         clearOneShotArmed()
+    }
+
+    /**
+     * The "engine adapter": maps what the payment engine reports about the tap
+     * (here the mock's MockTapInfo) to posguard's non-sensitive TapMetadata.
+     */
+    private suspend fun tapMetadata(record: TransactionRecord): TapMetadata {
+        val info = engine.tapInfo(record.idempotencyKey)
+        return TapMetadata(
+            txnId = record.id,
+            at = clock.instant(),
+            amount = record.amount,
+            entryMode = when (info?.entryMode) {
+                MockEntryMode.CONTACTLESS_CARD -> EntryMode.CONTACTLESS_CARD
+                MockEntryMode.CONTACTLESS_WALLET -> EntryMode.CONTACTLESS_WALLET
+                MockEntryMode.CHIP -> EntryMode.OTHER
+                null -> EntryMode.UNKNOWN
+            },
+            cardReadMillis = info?.cardReadMillis,
+        )
     }
 
     private suspend fun phaseFor(record: TransactionRecord, id: TxnId): PaymentPhase = when (record.state) {
@@ -247,7 +306,7 @@ class CheckoutController(
 
     // --- Demo controls ------------------------------------------------------------------
 
-    fun arm(scenario: DemoScenario) {
+    suspend fun arm(scenario: DemoScenario) {
         when (scenario) {
             DemoScenario.NORMAL -> {
                 disarmAll()
@@ -264,15 +323,41 @@ class CheckoutController(
             DemoScenario.ENGINE_CRASH -> engine.setNextScenario(MockScenario.ENGINE_CRASH)
             DemoScenario.TIMEOUT -> engine.setNextScenario(MockScenario.TIMEOUT)
             DemoScenario.DUPLICATE_RESPONSE -> engine.setNextScenario(MockScenario.DUPLICATE_RESPONSE)
+            DemoScenario.RELAY_BURST -> {
+                prerunWalletTaps()
+                engine.setNextScenario(MockScenario.APPROVE)
+                engine.setNextTapProfile(WALLET_TAP)
+                showBanner("Scenario 7: $PRERUN_TAPS phone-wallet taps were just processed. Take one more payment.")
+            }
             DemoScenario.DEVICE_INTEGRITY_FAIL ->
                 integrityServer.verdict = IntegrityVerdict.HEALTHY.copy(deviceRecognition = emptySet())
         }
         state.update { it.copy(armed = it.armed + scenario) }
     }
 
+    /**
+     * Scenario 7 setup: real small wallet payments through the full path (ledger,
+     * mock engine, relay-risk monitor), so the presenter's next tap completes a burst.
+     */
+    private suspend fun prerunWalletTaps() {
+        repeat(PRERUN_TAPS) {
+            val id = ledger.begin(Money(PRERUN_CENTS, CURRENCY), Tender.CARD)
+            val record = checkNotNull(ledger.get(id))
+            ledger.markSubmitted(id)
+            engine.setNextScenario(MockScenario.APPROVE)
+            engine.setNextTapProfile(WALLET_TAP)
+            val result = engine.charge(ChargeRequest(record.amount, record.tender, record.idempotencyKey))
+            ledger.markResult(id, result)
+            if (result is EngineResult.Authorized && relay.record(tapMetadata(record)) is RelayRiskAssessment.Clear) {
+                ledger.markCompleted(id)
+            }
+        }
+    }
+
     /** "Reset demo": clears simulated threats, scenarios, processor memory, and the event panel. */
     suspend fun resetDemo() {
         disarmAll()
+        relay.clear()
         engine.reset()
         events.clear()
         val now = clock.millis()
@@ -295,6 +380,7 @@ class CheckoutController(
         threats.clear()
         crashNextPayment = false
         engine.setNextScenario(engine.defaultScenario)
+        engine.setNextTapProfile(engine.defaultTapProfile)
         integrityServer.verdict = IntegrityVerdict.HEALTHY
         state.update { it.copy(armed = emptySet()) }
     }
@@ -328,6 +414,10 @@ class CheckoutController(
         private val ONE_SHOT = setOf(
             DemoScenario.NETWORK_DROP, DemoScenario.APP_CRASH, DemoScenario.DECLINE,
             DemoScenario.ENGINE_CRASH, DemoScenario.TIMEOUT, DemoScenario.DUPLICATE_RESPONSE,
+            DemoScenario.RELAY_BURST,
         )
+        private const val PRERUN_TAPS = 2
+        private const val PRERUN_CENTS = 250L
+        private val WALLET_TAP = MockTapInfo(MockEntryMode.CONTACTLESS_WALLET)
     }
 }

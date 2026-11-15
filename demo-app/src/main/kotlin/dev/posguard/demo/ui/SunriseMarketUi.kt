@@ -319,6 +319,18 @@ private fun PaymentScreen(screen: Screen.Payment, vm: CheckoutViewModel) {
                 )
                 Button(onClick = { vm.run { resubmit() } }, modifier = Modifier.fillMaxWidth()) { Text("Resubmit (same key)") }
             }
+            is PaymentPhase.HeldForReview -> {
+                Result(
+                    "🔎 Approved · held for review",
+                    Color(0xFF92400E),
+                    "Relay-risk check (experimental) flagged this payment:\n" +
+                        phase.reasons.joinToString("\n") { "• $it" } +
+                        "\n\nCheck the customer before handing over goods. posguard never declines on this. " +
+                        "Processor charged ${phase.processorCharges}×.",
+                )
+                Button(onClick = { vm.run { completeReviewed() } }, modifier = Modifier.fillMaxWidth()) { Text("Reviewed, complete sale") }
+                OutlinedButton(onClick = { vm.controller.finishSale() }, modifier = Modifier.fillMaxWidth()) { Text("Review later") }
+            }
         }
 
         if (screen.verdict.reasons.isNotEmpty()) {
@@ -365,7 +377,7 @@ private fun StateChip(state: TxnState, outcome: TxnOutcome?) {
     val (label, color) = when (state) {
         TxnState.COMPLETED ->
             if (outcome == TxnOutcome.DECLINED) "DECLINED" to DemoRed else "APPROVED" to Color(0xFF15803D)
-        TxnState.AUTHORIZED -> "AUTHORIZED" to Color(0xFF15803D)
+        TxnState.AUTHORIZED -> "HELD FOR REVIEW" to Color(0xFF92400E) // approved, awaiting relay-risk review
         TxnState.DECLINED -> "DECLINED" to DemoRed
         TxnState.VOIDED -> "VOIDED" to Color.Gray
         TxnState.UNKNOWN, TxnState.SUBMITTED, TxnState.CREATED -> "PENDING" to Color(0xFF92400E)
@@ -378,6 +390,7 @@ private fun StateChip(state: TxnState, outcome: TxnOutcome?) {
 @Composable
 private fun DemoControls(ui: UiState, vm: CheckoutViewModel, onClose: () -> Unit) {
     val events by vm.controller.telemetryEvents.collectAsState()
+    val held by vm.controller.heldForReview.collectAsState()
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxWidth().padding(12.dp), shape = MaterialTheme.shapes.large) {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp)) {
@@ -390,7 +403,7 @@ private fun DemoControls(ui: UiState, vm: CheckoutViewModel, onClose: () -> Unit
                 DemoScenario.entries.forEach { scenario ->
                     val armed = scenario in ui.armed
                     OutlinedButton(
-                        onClick = { vm.controller.arm(scenario) },
+                        onClick = { vm.run { arm(scenario) } },
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text(if (armed) "✔ ${scenario.label} (armed)" else scenario.label) }
                 }
@@ -399,6 +412,20 @@ private fun DemoControls(ui: UiState, vm: CheckoutViewModel, onClose: () -> Unit
                 Button(onClick = { vm.run { resetDemo() }; onClose() }, modifier = Modifier.fillMaxWidth()) { Text("Reset demo") }
                 OutlinedButton(onClick = { vm.controller.logScrubbedTestError() }, modifier = Modifier.fillMaxWidth()) {
                     Text("Log an error containing a test card number")
+                }
+
+                if (held.isNotEmpty()) {
+                    Text("Held for review", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 12.dp))
+                    held.forEach { flagged ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "${flagged.hits.joinToString { it.ruleId }} · ${flagged.txnId.value.take(8)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.weight(1f),
+                            )
+                            TextButton(onClick = { vm.run { markReviewed(flagged.txnId) } }) { Text("Mark reviewed") }
+                        }
+                    }
                 }
 
                 Text("Telemetry events (scrubbed)", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 12.dp))

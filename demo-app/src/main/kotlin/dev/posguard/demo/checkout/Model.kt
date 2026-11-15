@@ -27,6 +27,7 @@ enum class DemoScenario(val label: String) {
     RECORDING("3 · Screen recording active"),
     NETWORK_DROP("4 · Network drops after submit"),
     APP_CRASH("5 · App crashes mid-payment"),
+    RELAY_BURST("7 · Burst of wallet taps"),
     DECLINE("Card declined"),
     ENGINE_CRASH("Payment engine crash"),
     TIMEOUT("Engine timeout (nothing charged)"),
@@ -53,6 +54,17 @@ sealed interface PaymentPhase {
 
     /** The engine confirmed nothing was processed. Resubmitting with the same key is safe. */
     data class SafeToResubmit(val txnId: TxnId) : PaymentPhase
+
+    /**
+     * Approved by the engine, but experimental relay-risk rules flagged it. The
+     * ledger keeps it AUTHORIZED until the merchant reviews it. Never declined.
+     */
+    data class HeldForReview(
+        val txnId: TxnId,
+        val reasons: List<String>,
+        val engineReference: String?,
+        val processorCharges: Int,
+    ) : PaymentPhase
 }
 
 sealed interface Screen {
