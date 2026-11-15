@@ -54,7 +54,14 @@ A fictional food stand that runs fully offline, using a mock payment engine and 
 
 ## Status
 
-Milestone 1: the libraries and the demo are done, and demo scenarios 1–5 have been verified on an Android 16 (API 36) emulator. Releases: [v0.1.0](docs/releases/v0.1.0.md) (Milestone 1) and [v0.2.0](docs/releases/v0.2.0.md) (EBT readiness and Milestone 2). Milestone 2 added experimental relay-risk flags and a signed webhook sink. **Milestone 3, EBT readiness (in progress):** `posguard-ebt` and `ebt-simulator` are built and tested, and demo scenario 9 runs an EBT purchase with SNAP split, chip-to-tap fallback, and a partial approval. Scenarios 7 and 9 were verified on the API 36 emulator on 2026-11-15, along with a regression run of 1, 4, and 5. Real-device checks are next. See [CHANGELOG.md](CHANGELOG.md).
+**Current focus: EBT readiness (Milestone 3).** Latest release: [v0.2.0](docs/releases/v0.2.0.md) (2026-11-15).
+
+- **Milestone 3, EBT readiness (in progress):** `posguard-ebt` and `ebt-simulator` are built and tested. Demo scenario 9 runs an EBT purchase with SNAP split, chip-to-tap fallback, and a partial approval, and was verified on an Android 16 (API 36) emulator. Next: real-device checks.
+- **Milestone 2, done:** experimental relay-risk flags (scenario 7, verified on the emulator) and a signed webhook sink.
+- **Milestone 1, done:** integrity signals, outage-safe ledger, secure telemetry, mock engine, and demo scenarios 1–5, verified on the emulator. First release: [v0.1.0](docs/releases/v0.1.0.md).
+- **Later (Milestone 4):** device-connectivity watchdog, codebase assessment tool, benchmarks, Maven Central.
+
+See [CHANGELOG.md](CHANGELOG.md).
 
 Docs: [architecture](docs/architecture.md) · [threat model](docs/threat-model.md) · [integrity signals](docs/integrity.md) · [ledger](docs/ledger.md) · [event schema](docs/event-schema.md) · [policy defaults](docs/policy-defaults.md) · [relay-risk flags](docs/relay-risk.md) · [EBT readiness](docs/ebt.md) · [decisions](docs/decisions/)
 
