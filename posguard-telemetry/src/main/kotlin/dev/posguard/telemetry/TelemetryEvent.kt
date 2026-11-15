@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import dev.posguard.core.event.GuardEvent
 import dev.posguard.core.verdict.GuardAction
+import dev.posguard.core.verdict.ReasonCode
 import java.time.Instant
 
 /** Telemetry event types (schema v1). Adding a type is a minor-version change. */
@@ -13,6 +14,12 @@ public enum class EventType {
     TXN_STATE_CHANGED,
     APP_ERROR,
     APP_EVENT,
+
+    /** Experimental relay-risk rules flagged a payment for review. Attributes: `txnId`, `rules`. */
+    RELAY_RISK_FLAGGED,
+
+    /** The merchant reviewed a flagged payment. Attributes: `txnId`. */
+    RELAY_RISK_REVIEWED,
 }
 
 /** A ledger state change. Ids are opaque, and no amounts or engine references are included. */
@@ -133,6 +140,21 @@ public data class TelemetryEvent(
                 timestamp = event.at,
                 device = device,
                 txn = TxnTransition(event.id.value, event.from?.name, event.to.name),
+            )
+            is GuardEvent.RelayRiskFlagged -> TelemetryEvent(
+                eventId = eventId,
+                type = EventType.RELAY_RISK_FLAGGED,
+                timestamp = event.at,
+                device = device,
+                reasonCodes = listOf(ReasonCode.RELAY_RISK_PATTERN.code),
+                attributes = mapOf("txnId" to event.id.value, "rules" to event.ruleIds.joinToString(",")),
+            )
+            is GuardEvent.RelayRiskReviewed -> TelemetryEvent(
+                eventId = eventId,
+                type = EventType.RELAY_RISK_REVIEWED,
+                timestamp = event.at,
+                device = device,
+                attributes = mapOf("txnId" to event.id.value),
             )
         }
     }

@@ -118,4 +118,25 @@ class TelemetryEventTest {
         assertTrue(ctx.sdkInt > 0)
         assertTrue(ctx.appVersion.isNotEmpty())
     }
+
+    @Test
+    fun `relay risk events map to reason code and attributes and survive scrubbing`() {
+        val id = "0b6c3f6e-3a7d-4f2a-9c1e-5d8e7f6a1b2c"
+        val flagged = TelemetryEvent.from(
+            GuardEvent.RelayRiskFlagged(TxnId(id), listOf("relay.wallet_burst", "relay.slow_card_read"), now),
+            device,
+            "e-1",
+        ).scrubbed(Scrubber.Default)
+        assertEquals(EventType.RELAY_RISK_FLAGGED, flagged.type)
+        assertEquals(listOf("RELAY_RISK_PATTERN"), flagged.reasonCodes)
+        assertEquals(null, flagged.verdict)
+        assertEquals(mapOf("txnId" to id, "rules" to "relay.wallet_burst,relay.slow_card_read"), flagged.attributes)
+
+        val reviewed = TelemetryEvent.from(GuardEvent.RelayRiskReviewed(TxnId(id), now), device, "e-2")
+            .scrubbed(Scrubber.Default)
+        assertEquals(EventType.RELAY_RISK_REVIEWED, reviewed.type)
+        assertEquals(emptyList<String>(), reviewed.reasonCodes)
+        assertEquals(mapOf("txnId" to id), reviewed.attributes)
+        assertEquals("RELAY_RISK_REVIEWED", JSONObject(reviewed.toJson()).getString("type"))
+    }
 }

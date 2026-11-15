@@ -8,6 +8,9 @@ import java.time.Instant
 /**
  * Events posguard emits for telemetry and audit. They carry no card data. Sinks
  * still run them through the telemetry scrubber.
+ *
+ * New subtypes may be added in minor versions, so keep an `else` branch when
+ * you `when` over this type.
  */
 public sealed interface GuardEvent {
     public val at: Instant
@@ -22,6 +25,23 @@ public sealed interface GuardEvent {
         val id: TxnId,
         val from: TxnState?,
         val to: TxnState,
+        override val at: Instant,
+    ) : GuardEvent
+
+    /**
+     * Experimental relay-risk rules flagged an authorized payment for review.
+     * [ruleIds] are rule identifiers such as `"relay.wallet_burst"`. This is
+     * never a decline.
+     */
+    public data class RelayRiskFlagged(
+        val id: TxnId,
+        val ruleIds: List<String>,
+        override val at: Instant,
+    ) : GuardEvent
+
+    /** The merchant reviewed a payment flagged by [RelayRiskFlagged]. */
+    public data class RelayRiskReviewed(
+        val id: TxnId,
         override val at: Instant,
     ) : GuardEvent
 }
