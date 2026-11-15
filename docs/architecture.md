@@ -62,7 +62,7 @@ Room-backed `TransactionLedger` built with `PosGuardLedger.Builder`. Writes are 
 
 ## Telemetry (`posguard-telemetry`)
 
-`PosGuardTelemetry` is a `GuardEventListener`. Every event is scrubbed before buffering (card numbers, track data, emails, phones, sensitive keys; it fails closed). The buffer is bounded and delivers to pluggable `TelemetrySink`s, removing events only after every sink accepts them. See [event-schema.md](event-schema.md).
+`PosGuardTelemetry` is a `GuardEventListener`. Every event is scrubbed before buffering (card numbers, track data, emails, phones, sensitive keys; it fails closed). The buffer is bounded and delivers to pluggable `TelemetrySink`s (in-memory, rotating JSON lines, and a signed HTTPS `WebhookSink`), removing events only after every sink accepts them. See [event-schema.md](event-schema.md).
 
 ## Mock engine (`mock-payment-engine`)
 

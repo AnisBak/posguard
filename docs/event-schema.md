@@ -54,10 +54,60 @@ Known false positives (redacting is the safe direction): 13–19 digit values su
 ```kotlin
 val telemetry = PosGuardTelemetry.Builder(DeviceContext.fromSystem(context))
     .addSink(JsonLinesFileSink(File(context.noBackupFilesDir, "posguard-telemetry")))
-    .addSink(myDashboardSink) // any TelemetrySink: webhook (V2), hosted dashboard, ...
+    .addSink(myDashboardSink) // any TelemetrySink: WebhookSink, hosted dashboard, ...
     .build()
 
 PosGuard.Builder(ledger).addListener(telemetry)
 PosGuardLedger.Builder(context, engine).addListener(telemetry)
 telemetry.record(EventType.APP_ERROR, "printer offline", mapOf("lane" to "3"))
 ```
+
+Events leave the buffer when it reaches the batch size, or when you call `telemetry.flush()`. Call `flush()` from a periodic job (for example, WorkManager) or when the app goes to the background, so small batches don't wait.
+
+## Webhook delivery (`WebhookSink`)
+
+`WebhookSink` posts batches to an HTTPS endpoint you control, so events can go to the tools a merchant already uses. No endpoint or secret ships with posguard. Load both from your own untracked config. The app must declare `android.permission.INTERNET`. The library does not add it.
+
+```kotlin
+val webhook = WebhookSink.Builder(config.webhookUrl)          // https:// only
+    .signingSecret(config.webhookSecret)                      // optional, recommended
+    .header("Authorization", "Bearer ${config.webhookToken}") // optional
+    .build()
+PosGuardTelemetry.Builder(device).addSink(webhook).build()
+```
+
+**Request.** One `POST` per batch, `Content-Type: application/json; charset=utf-8`:
+
+```json
+{"schemaVersion":1,"events":[{"schemaVersion":1,"eventId":"…","type":"APP_ERROR", …}]}
+```
+
+Each element of `events` is a v1 event exactly as described above, already scrubbed.
+
+**Responses.** Any 2xx response accepts the batch. Any other status, a timeout (connect 5 s, read 10 s by default), or a network error counts as failure. The batch stays in the buffer and is sent again on the next flush. Redirects are never followed. **Receivers must deduplicate by `eventId`**, because a retried batch can repeat events that already arrived.
+
+**Signature.** With a signing secret, every request carries:
+
+```
+X-Posguard-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256(secret, "<t>.<raw body>")>
+```
+
+To verify on the receiver:
+1. Split the header on `,`, then on the first `=`, and read `t` and `v1`.
+2. Compute HMAC-SHA256 over the bytes `t + "." + rawBody` with the shared secret, encoded as lowercase hex.
+3. Compare it to `v1` with a constant-time comparison. Reject the request if they differ.
+4. Reject requests whose `t` is more than a few minutes away from your clock, to block replays.
+
+```python
+import hmac, hashlib, time
+
+def verify(header: str, raw_body: bytes, secret: bytes, tolerance_s: int = 300) -> bool:
+    parts = dict(p.split("=", 1) for p in header.split(","))
+    t, v1 = parts.get("t", ""), parts.get("v1", "")
+    if not t.isdigit() or abs(time.time() - int(t)) > tolerance_s:
+        return False
+    expected = hmac.new(secret, t.encode() + b"." + raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, v1)
+```
+
+`http://` URLs are rejected unless you call `.allowInsecureHttp()`, which is meant for a receiver on your own machine during development only.

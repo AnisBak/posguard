@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+- `WebhookSink` in `posguard-telemetry` (2026-11-15): posts scrubbed v1 event batches to an HTTPS endpoint, with optional HMAC-SHA256 request signing (`X-Posguard-Signature`), custom headers, and timeouts. It never follows redirects, rejects `http://` unless explicitly allowed, and relies on the telemetry buffer for retries. No new dependencies. 12 tests. Docs: webhook section in `docs/event-schema.md`.
+- Demo GIF in the README.
+
 ## [0.1.0] - 2026-11-14
 
 First tagged release: Milestone 1. Release notes: [docs/releases/v0.1.0.md](docs/releases/v0.1.0.md).

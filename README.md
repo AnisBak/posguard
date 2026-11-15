@@ -8,7 +8,7 @@ posguard is an open-source Android toolkit that helps payment-app makers keep ca
 
 - **Phone-terminal integrity:** device, app, and screen checks (overlays, screen capture, risky accessibility services, root, emulator, debugger) before payment acceptance opens.
 - **Outage-safe transaction journal:** a payment is never lost and never charged twice, even if the app crashes or the network drops mid-payment.
-- **Secure telemetry:** error and event reporting that strips card-like data before it leaves the device.
+- **Secure telemetry:** error and event reporting that strips card-like data before it leaves the device, with pluggable sinks including a signed HTTPS webhook.
 - **Mock payment engine and demo app:** "Sunrise Market", a fictional small grocer, that runs fully offline.
 
 ## Why it matters
