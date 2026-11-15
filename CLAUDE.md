@@ -152,7 +152,7 @@ Goal: a payment is **never lost and never charged twice**, even if the app crash
 6. (V3) **Card reader disconnects** → watchdog reconnects, payment continues.
 7. **Burst of suspicious wallet taps** → flagged for review (`RELAY_RISK_PATTERN`).
 8. (V3) **Assessment report** on a sample legacy POS app.
-9. (V2) **EBT chip/tap purchase** with SNAP-eligible items separated, balance shown, safe fallback, via simulator.
+9. (V2) **EBT chip/tap purchase** with SNAP-eligible items separated, partial approval, safe fallback, balance on the customer receipt (never on the POS screen, per the proposed rule), via simulator.
 
 Every scenario must run from Demo controls without code changes.
 
@@ -211,11 +211,11 @@ Keep these current; they are part of the deliverable:
 - [x] Webhook sink
 
 ### M3 — EBT readiness (current focus; re-prioritized 2026-11-15 ahead of devices/assess)
-- [ ] Verify the USDA proposed rule text; cite only verified facts
-- [ ] Ledger records approved amount (partial approvals)
-- [ ] `posguard-ebt`: config-driven item eligibility, basket split, tender planner, entry fallback flow, checkout coordinator, receipt fields
-- [ ] `ebt-simulator` with fictional cards and failure modes
-- [ ] Scenario 9; docs (`docs/ebt.md`, ADR-003) update
+- [x] Verify the USDA proposed rule text; cite only verified facts (docs/ebt.md)
+- [x] Ledger records approved amount (partial approvals)
+- [x] `posguard-ebt`: config-driven item eligibility, basket split, tender planner, entry fallback flow, checkout coordinator, receipt fields
+- [x] `ebt-simulator` with fictional cards and failure modes
+- [x] Scenario 9; docs (`docs/ebt.md`, ADR-003) update (emulator run pending)
 
 ### M4 — Devices, assessment, distribution
 - [ ] `posguard-devices` watchdog (with fake peripherals)

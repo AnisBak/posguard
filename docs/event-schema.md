@@ -8,16 +8,18 @@ Events are produced by `posguard-telemetry` and sent to sinks as JSON objects (o
 |---|---|---|
 | `schemaVersion` | int | `1`. A field may be added in a minor version. Removing or renaming one bumps this number. |
 | `eventId` | string | UUID. Unique per event. Receivers can use it to drop duplicates (a batch may be redelivered after a sink failure). |
-| `type` | string | `PREFLIGHT_EVALUATED`, `TXN_STATE_CHANGED`, `APP_ERROR`, `APP_EVENT`, `RELAY_RISK_FLAGGED`, `RELAY_RISK_REVIEWED`. New types may be added in a minor version, so ignore types you don't know. |
+| `type` | string | `PREFLIGHT_EVALUATED`, `TXN_STATE_CHANGED`, `APP_ERROR`, `APP_EVENT`, `RELAY_RISK_FLAGGED`, `RELAY_RISK_REVIEWED`, `EBT_ENTRY_FALLBACK`, `EBT_PARTIAL_APPROVAL`. New types may be added in a minor version, so ignore types you don't know. |
 | `timestamp` | string | ISO-8601 UTC instant. |
 | `verdict` | string \| null | `ALLOW`, `WARN`, `BLOCK`. Set on `PREFLIGHT_EVALUATED`. |
 | `reasonCodes` | string[] | Stable `ReasonCode.code` values. Can be non-empty even with `ALLOW`. |
 | `txn` | object \| null | Set on `TXN_STATE_CHANGED`: `txnId` (opaque), `from` (null on creation), `to`. |
 | `device` | object | `manufacturer`, `model`, `osVersion`, `sdkInt`, `appVersion`. |
 | `message` | string \| null | App errors and events only. Scrubbed. |
-| `attributes` | object | String → string. Keys and values scrubbed, and values of sensitive keys replaced with `[REDACTED]`. App errors and events carry app-supplied attributes. `RELAY_RISK_FLAGGED` carries `txnId` and `rules` (comma-separated rule ids), and `RELAY_RISK_REVIEWED` carries `txnId`. |
+| `attributes` | object | String → string. Keys and values scrubbed, and values of sensitive keys replaced with `[REDACTED]`. App errors and events carry app-supplied attributes. `RELAY_RISK_FLAGGED` carries `txnId` and `rules` (comma-separated rule ids), and `RELAY_RISK_REVIEWED` carries `txnId`. `EBT_ENTRY_FALLBACK` carries `txnId`, `from`, `to` (`NONE` when no entry mode was left), and `reason`, and `EBT_PARTIAL_APPROVAL` carries `txnId`. |
 
 `RELAY_RISK_FLAGGED` also sets `reasonCodes` to `["RELAY_RISK_PATTERN"]`. It is experimental and never means a decline ([relay-risk.md](relay-risk.md)).
+
+EBT events never include amounts or benefit balances ([ebt.md](ebt.md)).
 
 ## What is never included
 

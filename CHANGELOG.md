@@ -6,10 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ## [Unreleased]
 
 ### Changed
+- `EngineResult.Authorized`, `EngineStatus.Authorized`, and `TransactionRecord` have a new optional `approvedAmount` for partial approvals. Ledger schema v3 adds a nullable column (non-destructive 2→3 migration, tested against the committed v2 schema).
+- Demo catalog items have EBT categories. "Coffee" and "Sandwich" are now "Hot coffee" and "Hot sandwich".
 - Roadmap re-prioritized (2026-11-15): EBT readiness (`posguard-ebt`, `ebt-simulator`, demo scenario 9) is now Milestone 3 and the current focus. The device watchdog, assessment tool, benchmarks, and Maven Central move to Milestone 4.
 - `GuardEvent` has new subtypes. Code that matches `GuardEvent` exhaustively with `when` needs an `else` branch (KDoc now says so).
 
 ### Added
+- **EBT readiness** (2026-11-15), simulator only:
+  - New `posguard-ebt` module: `EbtConfig`/`EligibilityRules` (strict properties loader; no eligibility list shipped; unknown categories ineligible), `BasketSplitter`, `EbtTenderPlanner` (split tender and partial-approval shortfall), `EbtEntryFlow` (chip first, magstripe only after a failed chip attempt, never key entry), the `EbtEngine` adapter interface (card read and PIN stay in the certified engine), `EbtCheckout` (each leg in the ledger), and `EbtReceipt` (proposed minimum fields; balances masked for screens and redacted from `toString`). 27 tests.
+  - New `ebt-simulator` module (**not real**): fictional cards (magstripe-only, chip, chip and contactless), balances, partial approvals, chip-read failure, unrecognized chip app, and network drop. 6 tests.
+  - `combinedStatusSource` in core, so one ledger can recover legs sent to different engines. 3 tests.
+  - `GuardEvent.EbtEntryFallback` / `EbtPartialApproval`, and telemetry types `EBT_ENTRY_FALLBACK` / `EBT_PARTIAL_APPROVAL` (no amounts or balances).
+  - Demo scenario 9, **EBT purchase**: SNAP split, chip-to-tap fallback, partial approval, the rest by card, and a receipt. Plus magstripe-only card, reader without the SNAP chip app, and empty balance. 5 tests.
+  - Docs: `docs/ebt.md` (with facts checked against the proposed rule's text), ADR-003, threat model T12, event schema, architecture, demo script.
 - **Experimental relay-risk flags** (2026-11-15). `RelayRiskMonitor` in `posguard-integrity` runs pluggable `RelayRiskRule`s on non-sensitive `TapMetadata`. Built-in, untuned rules: wallet-tap burst (on by default), near-no-PIN-limit burst and slow card read (off until configured). It keeps a review queue and exposes `relay.signal`, which raises `RELAY_RISK_PATTERN` (capped at WARN) while a review is pending. It has a strict `RelayRiskConfig.fromProperties` loader and never declines. 26 tests. Docs: `docs/relay-risk.md`.
 - `GuardEvent.RelayRiskFlagged` / `RelayRiskReviewed` in core, and telemetry event types `RELAY_RISK_FLAGGED` / `RELAY_RISK_REVIEWED`.
 - `mock-payment-engine`: simulated tap metadata (`MockTapInfo`: entry mode and card read time) per charge, via `setNextTapProfile` and `tapInfo(key)`. The store still reads 0.1.0 records.

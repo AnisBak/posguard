@@ -7,6 +7,7 @@ posguard is an open-source Android toolkit that helps payment-app makers keep ca
 **posguard wraps the certified payment engine. It never replaces it.** Card reading, EMV processing, PIN handling, and card-data encryption stay inside certified payment SDKs and hardware. posguard protects the merchant app around them:
 
 - **Phone-terminal integrity:** device, app, and screen checks (overlays, screen capture, risky accessibility services, root, emulator, debugger) before payment acceptance opens.
+- **EBT readiness (simulator):** chip-first EBT checkout with safe fallback, SNAP-eligible basket split from config, split tender, partial approvals, and receipt fields, for USDA's proposed chip-and-tap EBT requirement. PINs and card reading stay inside the certified engine.
 - **Relay-risk flags (experimental):** rules on engine-reported tap metadata, such as a burst of phone-wallet taps, that hold an approved payment for the merchant's review. Never a decline.
 - **Outage-safe transaction journal:** a payment is never lost and never charged twice, even if the app crashes or the network drops mid-payment.
 - **Secure telemetry:** error and event reporting that strips card-like data before it leaves the device, with pluggable sinks including a signed HTTPS webhook.
@@ -17,7 +18,7 @@ posguard is an open-source Android toolkit that helps payment-app makers keep ca
 - Cards make up over three quarters of 236.6 billion U.S. noncash payments (Federal Reserve Payments Study, 2025 initial findings).
 - 29.8 million of 36.2 million U.S. small businesses have no employees (SBA Office of Advocacy, 2026), and phones are becoming their payment terminal (Visa reports 20M+ Tap to Phone devices, company data).
 - The U.S. Secret Service reports POS and ATM skimming losses of over $1 billion a year, and increasingly targets EBT skimming.
-- USDA proposed (October 2026) that SNAP retailers accept chip and contactless EBT.
+- USDA proposed (October 2026) that SNAP retailers accept chip and contactless EBT, with magnetic-stripe fallback only after a failed chip attempt (91 FR 66958; comments due December 22, 2026). USDA reports at least $360 million in stolen SNAP benefits replaced through mid-fiscal-year 2025.
 - PCI validates the payment kernel. The merchant app around it is not covered by that certification. That app is what posguard protects.
 
 ## Demo: Sunrise Market
@@ -41,9 +42,9 @@ A fictional food stand that runs fully offline, using a mock payment engine and 
 
 ## Status
 
-Milestone 1: the libraries and the demo are done, and demo scenarios 1–5 have been verified on an Android 16 (API 36) emulator. First release: [v0.1.0](docs/releases/v0.1.0.md). Milestone 2 added experimental relay-risk flags and a signed webhook sink. **Next: EBT readiness** (Milestone 3): chip and tap EBT checkout against a simulator, with SNAP-eligible item split, card-entry fallback, and partial approvals. See [CHANGELOG.md](CHANGELOG.md).
+Milestone 1: the libraries and the demo are done, and demo scenarios 1–5 have been verified on an Android 16 (API 36) emulator. First release: [v0.1.0](docs/releases/v0.1.0.md). Milestone 2 added experimental relay-risk flags and a signed webhook sink. **Milestone 3, EBT readiness (in progress):** `posguard-ebt` and `ebt-simulator` are built and tested, and demo scenario 9 runs an EBT purchase with SNAP split, chip-to-tap fallback, and a partial approval. Emulator run pending. See [CHANGELOG.md](CHANGELOG.md).
 
-Docs: [architecture](docs/architecture.md) · [threat model](docs/threat-model.md) · [integrity signals](docs/integrity.md) · [ledger](docs/ledger.md) · [event schema](docs/event-schema.md) · [policy defaults](docs/policy-defaults.md) · [relay-risk flags](docs/relay-risk.md) · [decisions](docs/decisions/)
+Docs: [architecture](docs/architecture.md) · [threat model](docs/threat-model.md) · [integrity signals](docs/integrity.md) · [ledger](docs/ledger.md) · [event schema](docs/event-schema.md) · [policy defaults](docs/policy-defaults.md) · [relay-risk flags](docs/relay-risk.md) · [EBT readiness](docs/ebt.md) · [decisions](docs/decisions/)
 
 ## Quick start (under 5 minutes)
 

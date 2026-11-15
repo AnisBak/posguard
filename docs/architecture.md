@@ -34,7 +34,9 @@ posguard sits **around** a certified payment engine (a SoftPOS SDK or a POS term
 | `posguard-integrity-play` | Android library (optional) | Play Integrity verdict signals. Separate so POS terminals without Google Play services avoid the Play libraries. |
 | `posguard-ledger` | Android library | Outage-safe journal (Room) with idempotency keys and crash or network recovery (WorkManager). |
 | `posguard-telemetry` | Android library | Event schema, card-data scrubber, local buffer, pluggable sinks. |
+| `posguard-ebt` | Android library | EBT checkout flows around a certified engine: config-driven SNAP split, split-tender planning, chip-first entry with fallback, partial approvals, receipt fields. No card data, no PIN. |
 | `mock-payment-engine` | Android library (not published) | Fake certified SDK with failure modes for demos and tests. **Not real.** |
+| `ebt-simulator` | Android library (not published) | Fake EBT engine and processor: fictional cards and balances, partial approvals, chip failures. **Not real.** |
 | `demo-app` | Android app | Fictional "Sunrise Market" with Demo controls. Runs fully offline. |
 
 Dependency direction: every library depends on `posguard-core`, and nothing depends on `demo-app` or `mock-payment-engine` except the demo itself.
@@ -47,7 +49,7 @@ Dependency direction: every library depends on `posguard-core`, and nothing depe
 | `dev.posguard.core.verdict` | `ReasonCode` (stable `code` + plain-English `description`), `GuardAction`, `GuardVerdict` (`Allow` / `Warn` / `Block`) |
 | `dev.posguard.core.policy` | `GuardPolicy` (defaults, builder, strict `fromProperties`). See [policy-defaults.md](policy-defaults.md) |
 | `dev.posguard.core.signal` | `IntegritySignal`, `SignalResult` (`Clear` / `Detected` / `Unavailable`) |
-| `dev.posguard.core.ledger` | `TransactionLedger`, `TxnState`, `TxnStateMachine`, `TransactionRecord`, `Money`, `Tender`, `EngineResult`, `EngineStatusSource`. See [ADR-002](decisions/ADR-002-idempotent-ledger.md) |
+| `dev.posguard.core.ledger` | `TransactionLedger`, `TxnState`, `TxnStateMachine`, `TransactionRecord`, `Money`, `Tender`, `EngineResult`, `EngineStatusSource`, `combinedStatusSource`. See [ADR-002](decisions/ADR-002-idempotent-ledger.md) |
 | `dev.posguard.core.event` | `GuardEvent`, `GuardEventListener` |
 
 **Preflight flow:** `PosGuard.preflight()` switches to a background dispatcher and runs all signals in parallel, each with a timeout (default 3 s). Any exception or timeout becomes `SignalResult.Unavailable` → `INTEGRITY_UNAVAILABLE`, and exception messages are dropped so they can't leak data. `VerdictEvaluator` applies the policy (the strictest action wins), then listeners receive `PreflightEvaluated`. A throwing listener is ignored.
@@ -66,6 +68,10 @@ Room-backed `TransactionLedger` built with `PosGuardLedger.Builder`. Writes are 
 
 `PosGuardTelemetry` is a `GuardEventListener`. Every event is scrubbed before buffering (card numbers, track data, emails, phones, sensitive keys; it fails closed). The buffer is bounded and delivers to pluggable `TelemetrySink`s (in-memory, rotating JSON lines, and a signed HTTPS `WebhookSink`), removing events only after every sink accepts them. See [event-schema.md](event-schema.md).
 
+## EBT (`posguard-ebt`, `ebt-simulator`)
+
+`EbtCheckout` runs each EBT leg (SNAP, EBT cash) as its own ledger transaction: `EbtEntryFlow` decides the next card-entry prompt (chip first, magstripe only after a chip failure), the integrator's `EbtEngine` reads the card and handles the PIN, and partial approvals are recorded as the ledger's `approvedAmount`. `BasketSplitter` and `EbtTenderPlanner` split the basket by config and move a partial-approval shortfall to the next tender. When card and EBT legs use different engines, the ledger recovers through `combinedStatusSource`. See [ebt.md](ebt.md) and [ADR-003](decisions/ADR-003-ebt-split-tender.md).
+
 ## Mock engine (`mock-payment-engine`)
 
 A fake SoftPOS SDK (**not real**) with a simulated processor that deduplicates by idempotency key and implements `EngineStatusSource`. It can simulate approve, decline, timeout, network drop after submit, duplicate response, and engine crash. See [mock-engine.md](mock-engine.md).
@@ -76,6 +82,7 @@ Private products must plug in **without forking**:
 
 - **Telemetry sinks**: an interface. A hosted dashboard is just another sink.
 - **Policy and thresholds**: loaded from config supplied by the integrating app, never hardcoded. Public defaults are conservative and documented.
+- **EBT eligibility and engines**: eligibility rules come from config (`EbtConfig.fromProperties`), and `EbtEngine` is an interface any certified engine can implement.
 - **Detection rules and integrity providers**: interfaces (`IntegritySignal`, `RelayRiskRule`), so a real Play Integrity provider, a fake provider, and third-party providers are interchangeable.
 
 ## Build
