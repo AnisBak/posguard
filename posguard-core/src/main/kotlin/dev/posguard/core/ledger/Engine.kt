@@ -5,7 +5,16 @@ package dev.posguard.core.ledger
  * engine's opaque reference and a non-sensitive decline code, never card data.
  */
 public sealed interface EngineResult {
-    public data class Authorized(val engineReference: String) : EngineResult
+    public data class Authorized(
+        val engineReference: String,
+        /**
+         * Set when the engine approved **less** than requested (a partial approval,
+         * for example when an EBT SNAP balance is too low). Same currency as the
+         * request, positive, and not more than the requested amount. Null means the
+         * full amount was approved.
+         */
+        val approvedAmount: Money? = null,
+    ) : EngineResult
 
     public data class Declined(
         val engineReference: String? = null,
@@ -20,7 +29,11 @@ public sealed interface EngineResult {
 /** Answer to a status query by [IdempotencyKey]. */
 public sealed interface EngineStatus {
     /** The engine processed and approved it. */
-    public data class Authorized(val engineReference: String) : EngineStatus
+    public data class Authorized(
+        val engineReference: String,
+        /** As in [EngineResult.Authorized.approvedAmount]. */
+        val approvedAmount: Money? = null,
+    ) : EngineStatus
 
     /** The engine processed and declined it. */
     public data class Declined(val engineReference: String? = null, val declineCode: String? = null) : EngineStatus

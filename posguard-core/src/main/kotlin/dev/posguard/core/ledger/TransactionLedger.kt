@@ -29,6 +29,11 @@ public data class TransactionRecord(
     val engineReference: String? = null,
     /** Set when the engine reports approved or declined. Null while the outcome is unknown. */
     val outcome: TxnOutcome? = null,
+    /**
+     * Set when the engine approved less than [amount] (a partial approval).
+     * Null means the full amount, or no approval yet.
+     */
+    val approvedAmount: Money? = null,
 )
 
 /** What recovery concluded about one pending transaction. */

@@ -38,6 +38,8 @@ internal data class TransactionEntity(
     val version: Long,
     /** `APPROVED` or `DECLINED` once the engine answered (schema v2). */
     val outcome: String? = null,
+    /** Approved amount when less than [amountCents] (partial approval), same currency (schema v3). */
+    val approvedAmountCents: Long? = null,
 )
 
 @Dao
@@ -67,6 +69,7 @@ internal interface TransactionDao {
             engineReference = :engineReference,
             resubmitAllowed = :resubmitAllowed,
             outcome = :outcome,
+            approvedAmountCents = :approvedAmountCents,
             version = :expectedVersion + 1
         WHERE id = :id AND version = :expectedVersion
         """,
@@ -79,10 +82,11 @@ internal interface TransactionDao {
         engineReference: String?,
         resubmitAllowed: Boolean,
         outcome: String?,
+        approvedAmountCents: Long?,
     ): Int
 }
 
-@Database(entities = [TransactionEntity::class], version = 2, exportSchema = true)
+@Database(entities = [TransactionEntity::class], version = 3, exportSchema = true)
 internal abstract class LedgerDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
 }
@@ -97,5 +101,12 @@ internal val MIGRATION_1_2: Migration = object : Migration(1, 2) {
         db.execSQL("ALTER TABLE posguard_txn ADD COLUMN outcome TEXT")
         db.execSQL("UPDATE posguard_txn SET outcome = 'APPROVED' WHERE state = 'AUTHORIZED'")
         db.execSQL("UPDATE posguard_txn SET outcome = 'DECLINED' WHERE state = 'DECLINED'")
+    }
+}
+
+/** v2 → v3: adds `approvedAmountCents` for partial approvals. Existing rows keep null (full amount). */
+internal val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE posguard_txn ADD COLUMN approvedAmountCents INTEGER")
     }
 }

@@ -1,8 +1,6 @@
 package dev.posguard.ledger
 
 import androidx.room.Room
-import android.database.sqlite.SQLiteDatabase
-import androidx.test.platform.app.InstrumentationRegistry
 import dev.posguard.core.ledger.EngineResult
 import dev.posguard.core.ledger.EngineStatus
 import dev.posguard.core.ledger.Money
@@ -11,9 +9,9 @@ import dev.posguard.core.ledger.TxnOutcome
 import dev.posguard.core.ledger.TxnState
 import dev.posguard.ledger.internal.LedgerDatabase
 import dev.posguard.ledger.internal.MIGRATION_1_2
+import dev.posguard.ledger.internal.MIGRATION_2_3
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
-import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -85,28 +83,13 @@ class OutcomeTest {
 
     /**
      * Builds a real v1 database from the committed v1 schema (posguard-ledger/schemas/.../1.json),
-     * then opens it with Room and MIGRATION_1_2. Room validates the migrated schema against v2
+     * then opens it with Room and the migrations. Room validates the migrated schema against the latest
      * on open, so a wrong migration fails here.
      */
     @Test
     fun `migration 1 to 2 adds outcome and backfills known answers without losing rows`() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
         val name = "migration-test-${System.nanoTime()}.db"
-        val schema = context.assets.open("dev.posguard.ledger.internal.LedgerDatabase/1.json")
-            .bufferedReader().use { JSONObject(it.readText()).getJSONObject("database") }
-        assertEquals(1, schema.getInt("version"))
-
-        SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(name).apply { parentFile?.mkdirs() }, null).use { db ->
-            val entity = schema.getJSONArray("entities").getJSONObject(0)
-            val table = entity.getString("tableName")
-            db.execSQL(entity.getString("createSql").replace("\${TABLE_NAME}", table))
-            val indices = entity.getJSONArray("indices")
-            for (i in 0 until indices.length()) {
-                db.execSQL(indices.getJSONObject(i).getString("createSql").replace("\${TABLE_NAME}", table))
-            }
-            val setup = schema.getJSONArray("setupQueries")
-            for (i in 0 until setup.length()) db.execSQL(setup.getString(i))
-            db.version = 1
+        createDatabaseFromSchema(1, name) { db ->
             fun row(id: String, state: String) = db.execSQL(
                 "INSERT INTO posguard_txn (id, idempotencyKey, amountCents, currency, tender, state, " +
                     "createdAtMillis, updatedAtMillis, engineReference, resubmitAllowed, version) " +
@@ -119,7 +102,7 @@ class OutcomeTest {
         }
 
         val room = Room.databaseBuilder(context, LedgerDatabase::class.java, name)
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .build()
         val outcomes = runBlocking {
             listOf("a", "d", "c", "s").associateWith { room.transactionDao().get(it)!!.outcome }

@@ -89,7 +89,12 @@ internal class RoomTransactionLedger(
         mutate(id) { current ->
             if (isDuplicate(current, result)) return@mutate null
             when (result) {
-                is EngineResult.Authorized -> Change(TxnState.AUTHORIZED, result.engineReference, outcome = TxnOutcome.APPROVED)
+                is EngineResult.Authorized -> Change(
+                    TxnState.AUTHORIZED,
+                    result.engineReference,
+                    outcome = TxnOutcome.APPROVED,
+                    approvedAmountCents = checkedApproved(current, result.approvedAmount),
+                )
                 is EngineResult.Declined -> Change(TxnState.DECLINED, result.engineReference, outcome = TxnOutcome.DECLINED)
                 EngineResult.Unknown -> Change(TxnState.UNKNOWN)
             }
@@ -148,6 +153,8 @@ internal class RoomTransactionLedger(
         val flagOnly: Boolean = false,
         /** Set with AUTHORIZED / DECLINED. Otherwise the stored outcome is kept. */
         val outcome: TxnOutcome? = null,
+        /** Set with AUTHORIZED for a partial approval. Otherwise the stored value is kept. */
+        val approvedAmountCents: Long? = null,
     )
 
     private suspend fun <T> io(block: suspend () -> T): T = withContext(dispatcher) { block() }
@@ -181,6 +188,7 @@ internal class RoomTransactionLedger(
             engineReference = change.engineReference ?: current.engineReference,
             resubmitAllowed = change.resubmitAllowed,
             outcome = change.outcome?.name ?: current.outcome,
+            approvedAmountCents = change.approvedAmountCents ?: current.approvedAmountCents,
         )
         check(rows == 1) { "Transaction ${current.id} was changed concurrently; retry." }
         return if (from != change.to) {
@@ -199,6 +207,22 @@ internal class RoomTransactionLedger(
                 (result.engineReference == null || current.engineReference == result.engineReference)
         EngineResult.Unknown -> current.txnState == TxnState.UNKNOWN
     }
+
+    /** Validates an app-reported partial approval. Throws on an impossible amount. */
+    private fun checkedApproved(current: TransactionEntity, approved: Money?): Long? {
+        if (approved == null) return null
+        require(approved.currency == current.currency) {
+            "Approved amount currency ${approved.currency} differs from ${current.currency}."
+        }
+        require(approved.amountCents <= current.amountCents) {
+            "Approved amount ${approved.amountCents} exceeds requested ${current.amountCents}."
+        }
+        return approved.amountCents.takeIf { it < current.amountCents }
+    }
+
+    /** Like [checkedApproved], but recovery must not fail on a bad engine answer: it keeps the full amount. */
+    private fun approvedOrNull(current: TransactionEntity, approved: Money?): Long? =
+        runCatching { checkedApproved(current, approved) }.getOrNull()
 
     private suspend fun queryStatusSafely(key: IdempotencyKey): EngineStatus = try {
         engineStatus.queryStatus(key)
@@ -233,7 +257,14 @@ internal class RoomTransactionLedger(
                     // CREATED cannot jump to a result: record that the engine did receive it.
                     if (current.txnState == TxnState.CREATED) step(Change(TxnState.SUBMITTED))
                     if (status is EngineStatus.Authorized) {
-                        step(Change(TxnState.AUTHORIZED, status.engineReference, outcome = TxnOutcome.APPROVED))
+                        step(
+                            Change(
+                                TxnState.AUTHORIZED,
+                                status.engineReference,
+                                outcome = TxnOutcome.APPROVED,
+                                approvedAmountCents = approvedOrNull(current, status.approvedAmount),
+                            ),
+                        )
                     } else {
                         val declined = status as EngineStatus.Declined
                         step(Change(TxnState.DECLINED, declined.engineReference, outcome = TxnOutcome.DECLINED))
@@ -283,4 +314,5 @@ internal fun TransactionEntity.toRecord(): TransactionRecord = TransactionRecord
     updatedAt = Instant.ofEpochMilli(updatedAtMillis),
     engineReference = engineReference,
     outcome = outcome?.let(TxnOutcome::valueOf),
+    approvedAmount = approvedAmountCents?.let { Money(it, currency) },
 )
