@@ -59,12 +59,22 @@ public class SharedPreferencesMockProcessorStore(
     }
 
     private fun encode(c: ProcessedCharge): String =
-        listOf(if (c.approved) "A" else "D", c.engineReference, c.amountCents, c.currency, c.declineCode.orEmpty())
-            .joinToString(SEPARATOR)
+        listOf(
+            if (c.approved) "A" else "D", c.engineReference, c.amountCents, c.currency, c.declineCode.orEmpty(),
+            c.tap.entryMode.name, c.tap.cardReadMillis?.toString().orEmpty(),
+        ).joinToString(SEPARATOR)
 
     private fun decode(key: String, raw: String): ProcessedCharge? {
         val parts = raw.split(SEPARATOR)
-        if (parts.size != FIELD_COUNT) return null
+        if (parts.size != FIELD_COUNT && parts.size != LEGACY_FIELD_COUNT) return null
+        val tap = if (parts.size == FIELD_COUNT) {
+            MockTapInfo(
+                entryMode = MockEntryMode.entries.firstOrNull { it.name == parts[5] } ?: return null,
+                cardReadMillis = parts[6].ifEmpty { null }?.let { it.toLongOrNull() ?: return null },
+            )
+        } else {
+            MockTapInfo()
+        }
         return ProcessedCharge(
             idempotencyKey = key,
             approved = parts[0] == "A",
@@ -72,12 +82,14 @@ public class SharedPreferencesMockProcessorStore(
             amountCents = parts[2].toLongOrNull() ?: return null,
             currency = parts[3],
             declineCode = parts[4].ifEmpty { null },
+            tap = tap,
         )
     }
 
     public companion object {
         public const val DEFAULT_NAME: String = "posguard-mock-processor"
         private const val SEPARATOR = "|"
-        private const val FIELD_COUNT = 5
+        private const val FIELD_COUNT = 7
+        private const val LEGACY_FIELD_COUNT = 5 // before tap metadata (0.1.0)
     }
 }

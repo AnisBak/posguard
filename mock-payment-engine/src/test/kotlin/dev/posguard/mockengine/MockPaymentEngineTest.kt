@@ -187,4 +187,40 @@ class MockPaymentEngineTest {
     fun `label is the required demo banner`() {
         assertEquals("DEMO — NOT A REAL PAYMENT", MockPaymentEngine.LABEL)
     }
+
+    @Test
+    fun `tap profile is one-shot and recorded per key`() = runTest {
+        val engine = engine()
+        val walletTap = MockTapInfo(MockEntryMode.CONTACTLESS_WALLET, cardReadMillis = 900)
+        engine.setNextTapProfile(walletTap)
+        val first = request()
+        val second = request()
+        engine.charge(first)
+        engine.charge(second)
+
+        assertEquals(walletTap, engine.tapInfo(first.idempotencyKey))
+        assertEquals(MockTapInfo(), engine.tapInfo(second.idempotencyKey))
+        assertEquals(null, engine.tapInfo(IdempotencyKey("never-charged")))
+    }
+
+    @Test
+    fun `repeating a key keeps the original tap info`() = runTest {
+        val engine = engine()
+        val req = request()
+        engine.setNextTapProfile(MockTapInfo(MockEntryMode.CONTACTLESS_WALLET))
+        engine.charge(req)
+        engine.setNextTapProfile(MockTapInfo(MockEntryMode.CHIP))
+        engine.charge(req)
+        assertEquals(MockEntryMode.CONTACTLESS_WALLET, engine.tapInfo(req.idempotencyKey)?.entryMode)
+    }
+
+    @Test
+    fun `reset clears a pending tap profile`() = runTest {
+        val engine = engine()
+        engine.setNextTapProfile(MockTapInfo(MockEntryMode.CONTACTLESS_WALLET))
+        engine.reset()
+        val req = request()
+        engine.charge(req)
+        assertEquals(MockTapInfo(), engine.tapInfo(req.idempotencyKey))
+    }
 }

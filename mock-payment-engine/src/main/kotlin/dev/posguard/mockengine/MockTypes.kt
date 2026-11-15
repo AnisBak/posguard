@@ -58,7 +58,30 @@ public data class ProcessedCharge(
     val amountCents: Long,
     val currency: String,
     val declineCode: String? = null,
+    /** How the simulated card was presented. */
+    val tap: MockTapInfo = MockTapInfo(),
 ) {
     internal fun toResult(): EngineResult =
         if (approved) EngineResult.Authorized(engineReference) else EngineResult.Declined(engineReference, declineCode)
+}
+
+/** How a simulated payment was presented, as a real SoftPOS engine might report it. */
+public enum class MockEntryMode {
+    CONTACTLESS_CARD,
+    CONTACTLESS_WALLET,
+    CHIP,
+}
+
+/**
+ * Simulated tap metadata. **NOT REAL.** Real engines expose similar
+ * non-sensitive fields (entry mode, timings) in their own types. An adapter
+ * maps them to posguard's `TapMetadata`, as the demo app does.
+ */
+public data class MockTapInfo(
+    val entryMode: MockEntryMode = MockEntryMode.CONTACTLESS_CARD,
+    val cardReadMillis: Long? = DEFAULT_CARD_READ_MILLIS,
+) {
+    public companion object {
+        public const val DEFAULT_CARD_READ_MILLIS: Long = 350
+    }
 }

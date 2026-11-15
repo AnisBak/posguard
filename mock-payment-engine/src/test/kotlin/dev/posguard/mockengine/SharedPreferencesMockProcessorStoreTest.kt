@@ -62,4 +62,23 @@ class SharedPreferencesMockProcessorStoreTest {
         assertTrue(second.queryStatus(key) is EngineStatus.Authorized)
         assertEquals(1, second.processedCharges().size)
     }
+
+    @Test
+    fun `round trips tap info, including a missing read time`() {
+        val store = SharedPreferencesMockProcessorStore(context, "store-tap")
+        val wallet = ProcessedCharge("k1", true, "MOCK-1", 100, "USD", tap = MockTapInfo(MockEntryMode.CONTACTLESS_WALLET, 1200))
+        val chip = ProcessedCharge("k2", true, "MOCK-2", 100, "USD", tap = MockTapInfo(MockEntryMode.CHIP, null))
+        store.put(wallet)
+        store.put(chip)
+        assertEquals(wallet, store.get("k1"))
+        assertEquals(chip, store.get("k2"))
+    }
+
+    @Test
+    fun `reads 0_1_0 records without tap info as the default tap`() {
+        context.getSharedPreferences("store-legacy", Context.MODE_PRIVATE).edit()
+            .putString("old", "A|MOCK-9|500|USD|").commit()
+        val charge = SharedPreferencesMockProcessorStore(context, "store-legacy").get("old")
+        assertEquals(ProcessedCharge("old", true, "MOCK-9", 500, "USD", tap = MockTapInfo()), charge)
+    }
 }

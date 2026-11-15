@@ -40,6 +40,7 @@ public class MockPaymentEngine private constructor(
 
     private val processorLock = Mutex()
     private val nextScenario = AtomicReference<MockScenario?>(null)
+    private val nextTap = AtomicReference<MockTapInfo?>(null)
     private val network = MutableStateFlow(true)
     private val late = MutableSharedFlow<LateResponse>(extraBufferCapacity = LATE_BUFFER)
 
@@ -52,6 +53,15 @@ public class MockPaymentEngine private constructor(
 
     /** Results delivered a second time ([MockScenario.DUPLICATE_RESPONSE]). Forward them to the ledger. */
     public val lateResponses: SharedFlow<LateResponse> = late.asSharedFlow()
+
+    /** Tap metadata recorded when no one-shot [setNextTapProfile] is pending. */
+    @Volatile
+    public var defaultTapProfile: MockTapInfo = MockTapInfo()
+
+    /** Uses [tap] for the next [charge] only, then goes back to [defaultTapProfile]. */
+    public fun setNextTapProfile(tap: MockTapInfo) {
+        nextTap.set(tap)
+    }
 
     /** Uses [scenario] for the next [charge] only, then goes back to [defaultScenario]. */
     public fun setNextScenario(scenario: MockScenario) {
@@ -76,6 +86,7 @@ public class MockPaymentEngine private constructor(
      */
     public suspend fun charge(request: ChargeRequest): EngineResult = withContext(dispatcher) {
         val scenario = nextScenario.getAndSet(null) ?: defaultScenario
+        val tap = nextTap.getAndSet(null) ?: defaultTapProfile
         delay(latency)
         // Offline: the request never reaches the processor.
         if (!network.value) return@withContext EngineResult.Unknown
@@ -85,21 +96,21 @@ public class MockPaymentEngine private constructor(
         if (existing != null) return@withContext existing.toResult()
 
         when (scenario) {
-            MockScenario.APPROVE -> process(request, approved = true).toResult()
-            MockScenario.DECLINE -> process(request, approved = false).toResult()
+            MockScenario.APPROVE -> process(request, approved = true, tap).toResult()
+            MockScenario.DECLINE -> process(request, approved = false, tap).toResult()
             MockScenario.TIMEOUT -> EngineResult.Unknown
             MockScenario.NETWORK_DROP_AFTER_SUBMIT -> {
-                process(request, approved = true)
+                process(request, approved = true, tap)
                 network.value = false
                 EngineResult.Unknown
             }
             MockScenario.DUPLICATE_RESPONSE -> {
-                val result = process(request, approved = true).toResult()
+                val result = process(request, approved = true, tap).toResult()
                 late.tryEmit(LateResponse(key, result))
                 result
             }
             MockScenario.ENGINE_CRASH -> {
-                process(request, approved = true)
+                process(request, approved = true, tap)
                 throw MockEngineCrashException()
             }
         }
@@ -117,6 +128,10 @@ public class MockPaymentEngine private constructor(
         }
     }
 
+    /** Tap metadata the engine recorded for [key], or null if it never processed that key. */
+    public suspend fun tapInfo(key: IdempotencyKey): MockTapInfo? =
+        withContext(dispatcher) { processorLock.withLock { store.get(key.value) }?.tap }
+
     /** Everything the simulated processor has processed. The demo uses it to show "charged once". */
     public suspend fun processedCharges(): List<ProcessedCharge> =
         withContext(dispatcher) { processorLock.withLock { store.all() } }
@@ -125,10 +140,11 @@ public class MockPaymentEngine private constructor(
     public suspend fun reset(): Unit = withContext(dispatcher) {
         processorLock.withLock { store.clear() }
         nextScenario.set(null)
+        nextTap.set(null)
         network.value = true
     }
 
-    private suspend fun process(request: ChargeRequest, approved: Boolean): ProcessedCharge =
+    private suspend fun process(request: ChargeRequest, approved: Boolean, tap: MockTapInfo): ProcessedCharge =
         processorLock.withLock {
             // Re-check under the lock so two concurrent charges with one key process once.
             store.get(request.idempotencyKey.value) ?: ProcessedCharge(
@@ -138,6 +154,7 @@ public class MockPaymentEngine private constructor(
                 amountCents = request.amount.amountCents,
                 currency = request.amount.currency,
                 declineCode = if (approved) null else FAKE_DECLINE_CODE,
+                tap = tap,
             ).also(store::put)
         }
 
