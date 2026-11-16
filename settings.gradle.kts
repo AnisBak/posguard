@@ -23,8 +23,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "posguard"
 
-// Modules not yet started (devices, assess)
-// are added when their milestone starts.
+// Modules not yet started (devices) are added when their milestone starts.
 include(
     ":posguard-core",
     ":posguard-integrity",
@@ -32,6 +31,7 @@ include(
     ":posguard-ledger",
     ":posguard-telemetry",
     ":posguard-ebt",
+    ":posguard-assess",
     ":mock-payment-engine",
     ":ebt-simulator",
     ":demo-app",
