@@ -223,6 +223,13 @@ Keep these current; they are part of the deliverable:
 - [ ] Benchmarks
 - [ ] Publish to Maven Central; scenarios 6 and 8
 
+### M5 — Guarded engine wrapper (planned 2026-11-15; propose a plan before starting)
+One-line adoption for existing POS apps: `PosGuard.wrap(vendorEngine)` returns the same engine interface and runs recover → preflight → begin → markSubmitted → charge (same idempotency key) → markResult inside every call. The vendor SDK still reads the card, handles the PIN, and talks to the processor; the wrapper sees only the amount in and approved/declined out (no card data, no PCI scope).
+- [ ] Wrapper API and per-vendor adapter interface (like `EbtEngine`)
+- [ ] Adapter for `mock-payment-engine`; demo app switched to the wrapper
+- [ ] Tests for step order, Block handling, idempotency, and crash/outage recovery through the wrapper
+- [ ] Docs (ADR, README quick start)
+
 ## 16. How to work in this repo
 
 - Before large changes, **propose a short plan** and wait for approval.
