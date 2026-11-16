@@ -16,3 +16,11 @@ application {
 tasks.named<JavaExec>("run") {
     workingDir = rootProject.projectDir
 }
+
+// SampleReportTest scans the fictional sample app and compares with the committed example report.
+tasks.named<Test>("test") {
+    val repoRoot = rootProject.projectDir
+    systemProperty("posguard.repoRoot", repoRoot.absolutePath)
+    inputs.dir(repoRoot.resolve("samples/legacy-pos-sample")).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(repoRoot.resolve("docs/examples/assess-legacy-pos-sample.md")).withPathSensitivity(PathSensitivity.RELATIVE)
+}

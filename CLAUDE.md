@@ -219,7 +219,7 @@ Keep these current; they are part of the deliverable:
 
 ### M4 — Devices, assessment, distribution
 - [ ] `posguard-devices` watchdog (with fake peripherals)
-- [ ] `posguard-assess` CLI + Gradle plugin; report on demo app and public apps
+- [x] `posguard-assess` CLI + Gradle plugin; report on demo app and a fictional legacy sample (2026-11-15). Public open-source apps pending review of which apps to scan
 - [ ] Benchmarks
 - [ ] Publish to Maven Central; scenarios 6 and 8
 

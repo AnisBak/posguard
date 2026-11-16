@@ -33,6 +33,9 @@
 **9 · EBT purchase (30 s).** In Demo controls, tap **9 · EBT purchase (chip fails → tap, partial)**. A basket loads: bananas, juice, soda, dish soap, and hot coffee. Take payment, then tap **Pay with EBT**.
 "Under USDA's proposed rule, SNAP retailers will need to accept chip and tap EBT cards. Here posguard splits the basket: food goes on SNAP, while the soda (restricted in this example state), the soap, and the hot coffee don't." Tap **Charge $7.97 to SNAP**. "The chip read fails, so posguard asks for a tap. It never jumps straight to the stripe that skimmers copy. The PIN stays inside the certified engine." The card has only $5.00 left: "Partial approval: posguard moves the $2.97 shortfall to the card." Tap **Charge $11.71 to card**. "The receipt has the required fields, and the balance goes on the customer's receipt, not on this screen."
 
+**8 · Assessment report (20 s, optional, for app makers and engineering leads; run on a laptop).** Run `./gradlew :posguard-assess:run --args="samples/legacy-pos-sample --html build/assess/legacy.html --out build/assess/legacy.md"` and open the HTML report.
+"Most POS apps in stores today can't be rewritten. This scans one, here a fictional legacy app, and ranks what to fix first: high risk and easy at the top. Card numbers in logs, a payment screen anyone can record, a release build left debuggable. Each finding says why it matters, how to fix it, and which posguard module helps." Then scan `demo-app` and show **0 findings**: "Same rules on Sunrise Market: clean."
+
 **Close (15 s).** Open Demo controls, tap **Log an error containing a test card number**, and show `[REDACTED_PAN]` in the telemetry panel.
 "Every event is scrubbed before it leaves the device. posguard is Apache-2.0, works with any certified engine, and doesn't touch card data or claim PCI certification."
 

@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+- `posguard-assess` (2026-11-15): scans an Android POS codebase as text and reports gaps around the payment engine, ranked by risk × ease of fix and mapped to OWASP MASVS. Twelve built-in rules (payment screen FLAG_SECURE and touch filtering, integrity preflight, card data in logs, payment state in plain storage, idempotency and recovery, EBT swipe-before-chip, old targetSdk, deprecated APIs, debuggable builds, backup, cleartext traffic). Markdown and HTML reports that never quote scanned values; external properties config; rules plug in via `ServiceLoader`. CLI with `--fail-on` exit codes. No new dependencies.
+- `posguard-assess-gradle`: plugin `dev.posguard.assess` with a cacheable `assessPosguard` task (TestKit-tested, not published yet).
+- `samples/legacy-pos-sample`: a fictional, deliberately insecure POS app that triggers every rule, with its committed report (`docs/examples/assess-legacy-pos-sample.md`) kept in sync by a test. `demo-app` reports no findings.
+- Docs: `docs/assess.md`, ADR-004, demo scenario 8.
+
 ### Changed
 - Docs: `posguard-ebt` is described as a security and reliability layer for existing POS apps (chip-first enforcement, explained fallbacks, outage-safe legs, private balances), with basket split, tender planning, and receipts as supporting helpers. No code changes.
 

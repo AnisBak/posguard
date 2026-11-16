@@ -11,6 +11,7 @@ posguard is an open-source Android toolkit that helps payment-app makers keep ca
 - **Relay-risk flags (experimental):** rules on engine-reported tap metadata, such as a burst of phone-wallet taps, that hold an approved payment for the merchant's review. Never a decline.
 - **Outage-safe transaction journal:** a payment is never lost and never charged twice, even if the app crashes or the network drops mid-payment.
 - **Secure telemetry:** error and event reporting that strips card-like data before it leaves the device, with pluggable sinks including a signed HTTPS webhook.
+- **Codebase assessment:** a CLI and Gradle plugin that scan an existing Android POS app for gaps around the payment engine (unprotected payment screens, card data in logs, payment state in plain storage, no idempotency or recovery, swipe-first EBT, debuggable or cleartext builds) and rank them by risk × ease of fix, mapped to OWASP MASVS. Heuristic, so findings are leads for a reviewer.
 - **Mock payment engine and demo app:** "Sunrise Market", a fictional small grocer, that runs fully offline.
 
 ## Why it matters
@@ -54,16 +55,16 @@ A fictional food stand that runs fully offline, using a mock payment engine and 
 
 ## Status
 
-**Current focus: EBT readiness (Milestone 3).** Latest release: [v0.2.0](docs/releases/v0.2.0.md) (2026-11-15).
+**Current focus: Milestone 4 (assessment tool, device watchdog, benchmarks, distribution).** Latest release: [v0.2.0](docs/releases/v0.2.0.md) (2026-11-15).
 
-- **Milestone 3, EBT readiness (in progress):** `posguard-ebt` and `ebt-simulator` are built and tested. Demo scenario 9 runs an EBT purchase with SNAP split, chip-to-tap fallback, and a partial approval, and was verified on an Android 16 (API 36) emulator. Next: real-device checks.
+- **Milestone 4, in progress:** `posguard-assess` (CLI) and `posguard-assess-gradle` (plugin) are built and tested. Twelve MASVS-mapped rules, with an [example report](docs/examples/assess-legacy-pos-sample.md) on a fictional legacy POS app. Next: device watchdog, benchmarks, Maven Central.
+- **Milestone 3, EBT readiness (done):** `posguard-ebt` and `ebt-simulator` are built and tested. Demo scenario 9 runs an EBT purchase with SNAP split, chip-to-tap fallback, and a partial approval, and was verified on an Android 16 (API 36) emulator. Next: real-device checks.
 - **Milestone 2, done:** experimental relay-risk flags (scenario 7, verified on the emulator) and a signed webhook sink.
 - **Milestone 1, done:** integrity signals, outage-safe ledger, secure telemetry, mock engine, and demo scenarios 1–5, verified on the emulator. First release: [v0.1.0](docs/releases/v0.1.0.md).
-- **Later (Milestone 4):** device-connectivity watchdog, codebase assessment tool, benchmarks, Maven Central.
 
 See [CHANGELOG.md](CHANGELOG.md).
 
-Docs: [architecture](docs/architecture.md) · [threat model](docs/threat-model.md) · [integrity signals](docs/integrity.md) · [ledger](docs/ledger.md) · [event schema](docs/event-schema.md) · [policy defaults](docs/policy-defaults.md) · [relay-risk flags](docs/relay-risk.md) · [EBT readiness](docs/ebt.md) · [decisions](docs/decisions/)
+Docs: [architecture](docs/architecture.md) · [threat model](docs/threat-model.md) · [integrity signals](docs/integrity.md) · [ledger](docs/ledger.md) · [event schema](docs/event-schema.md) · [policy defaults](docs/policy-defaults.md) · [relay-risk flags](docs/relay-risk.md) · [EBT readiness](docs/ebt.md) · [codebase assessment](docs/assess.md) · [decisions](docs/decisions/)
 
 ## Quick start (under 5 minutes)
 

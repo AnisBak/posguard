@@ -1,6 +1,6 @@
 # Architecture
 
-> Status (2026-11-15): M1 modules are implemented and tested, and demo scenarios 1–5 were verified on an emulator. M2 added relay-risk flags and the webhook sink. M3 (EBT readiness, the current focus) added `posguard-ebt`, `ebt-simulator`, and demo scenario 9, which have unit tests. Scenarios 7 and 9 were verified on an API 36 emulator on 2026-11-15.
+> Status (2026-11-15): M1 modules are implemented and tested, and demo scenarios 1–5 were verified on an emulator. M2 added relay-risk flags and the webhook sink. M3 (EBT readiness) added `posguard-ebt`, `ebt-simulator`, and demo scenario 9, which have unit tests. Scenarios 7 and 9 were verified on an API 36 emulator on 2026-11-15. M4 (current) added `posguard-assess` and its Gradle plugin.
 
 ## Principle: wrap, never replace
 
@@ -35,11 +35,13 @@ posguard sits **around** a certified payment engine (a SoftPOS SDK or a POS term
 | `posguard-ledger` | Android library | Outage-safe journal (Room) with idempotency keys and crash or network recovery (WorkManager). |
 | `posguard-telemetry` | Android library | Event schema, card-data scrubber, local buffer, pluggable sinks. |
 | `posguard-ebt` | Android library | EBT checkout flows around a certified engine: config-driven SNAP split, split-tender planning, chip-first entry with fallback, partial approvals, receipt fields. No card data, no PIN. |
+| `posguard-assess` | Kotlin/JVM + CLI | Scans an Android POS codebase as text and reports MASVS-mapped gaps ranked by risk × ease of fix. Rules plug in via `ServiceLoader`. Depends on nothing else in posguard. See [assess.md](assess.md). |
+| `posguard-assess-gradle` | Gradle plugin (not published yet) | `dev.posguard.assess`: a cacheable `assessPosguard` task that writes Markdown and HTML reports. |
 | `mock-payment-engine` | Android library (not published) | Fake certified SDK with failure modes for demos and tests. **Not real.** |
 | `ebt-simulator` | Android library (not published) | Fake EBT engine and processor: fictional cards and balances, partial approvals, chip failures. **Not real.** |
 | `demo-app` | Android app | Fictional "Sunrise Market" with Demo controls. Runs fully offline. |
 
-Dependency direction: every library depends on `posguard-core`, and nothing depends on `demo-app` or `mock-payment-engine` except the demo itself.
+Dependency direction: every runtime library depends on `posguard-core` (the assessment tool is standalone), and nothing depends on `demo-app` or `mock-payment-engine` except the demo itself.
 
 ## Core API (`posguard-core`)
 

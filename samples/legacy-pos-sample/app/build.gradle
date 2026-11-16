@@ -1,0 +1,23 @@
+// FICTIONAL, DELIBERATELY INSECURE SAMPLE. See ../README.md. Not built.
+apply plugin: 'com.android.application'
+
+repositories {
+    maven { url "http://maven.example.com/releases" }
+}
+
+android {
+    compileSdkVersion 30
+
+    defaultConfig {
+        applicationId "com.example.cornerdeli.pos"
+        minSdkVersion 21
+        targetSdkVersion 30
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            debuggable true
+        }
+    }
+}
