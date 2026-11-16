@@ -32,6 +32,7 @@ include(
     ":posguard-telemetry",
     ":posguard-ebt",
     ":posguard-assess",
+    ":posguard-assess-gradle",
     ":mock-payment-engine",
     ":ebt-simulator",
     ":demo-app",
