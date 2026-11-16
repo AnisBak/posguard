@@ -59,6 +59,10 @@ class ScreenRulesTest {
             class CheckoutController
             object PaymentScreenHelper
             fun PayScreen() {}
+            data class PaymentScreen(val amount: Long) : UiState
+            sealed class CheckoutScreen : Route
+            class PaymentDialog
+            val s = "class PaymentActivity : Activity()"
             """,
         )
         val hits = PaymentScreenNoFlagSecure.hits(others)

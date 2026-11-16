@@ -9,10 +9,19 @@ internal data class PaymentScreen(val file: SourceFile, val line: Int, val name:
 /** Text patterns shared by several rules. All of them are heuristics. */
 internal object Heuristics {
 
-    /** `class PaymentActivity`, `fun CheckoutScreen(`, `class PayFragment` ... */
+    /**
+     * `class PaymentActivity : ...`, `fun CheckoutScreen(`, `class PayFragment extends ...`. Data, sealed, enum,
+     * annotation, and value classes are models, not screens, and classes must extend something.
+     */
     private val PAYMENT_SCREEN = Regex(
-        """\b(?:class|fun)\s+(\w*(?:Payment|Checkout|Tender|Charge|Pay(?=[A-Z]))\w*(?:Activity|Fragment|Screen|Dialog))\b""",
+        """(?:(?<!data |sealed |enum |annotation |value |inline )\bclass\s+(\w*(?:Payment|Checkout|Tender|Charge|Pay(?=[A-Z]))\w*(?:Activity|Fragment|Screen|Dialog))\b(?=[^{]*(?::|\bextends\b))""" +
+            """|\bfun\s+(\w*(?:Payment|Checkout|Tender|Charge|Pay(?=[A-Z]))\w*(?:Screen|Dialog))\s*\()""",
     )
+
+    private val STRING_CONTENT = Regex(""""(?:[^"\\]|\\.)*"""")
+
+    /** [line] with the contents of string literals blanked. */
+    fun withoutStrings(line: String): String = line.replace(STRING_CONTENT, "\"\"")
 
     /** Calls (or definitions) that start a payment. */
     val PAYMENT_START = Regex(
@@ -21,7 +30,9 @@ internal object Heuristics {
 
     fun paymentScreens(project: ProjectView): List<PaymentScreen> = project.codeFiles.flatMap { file ->
         file.code.mapIndexedNotNull { index, line ->
-            PAYMENT_SCREEN.find(line)?.let { PaymentScreen(file, index + 1, it.groupValues[1]) }
+            PAYMENT_SCREEN.find(withoutStrings(line))?.let { m ->
+                PaymentScreen(file, index + 1, m.groupValues[1].ifEmpty { m.groupValues[2] })
+            }
         }
     }
 

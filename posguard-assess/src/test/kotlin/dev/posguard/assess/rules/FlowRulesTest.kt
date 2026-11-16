@@ -91,5 +91,17 @@ class FlowRulesTest {
         assertEquals(emptyList<Any>(), EbtMagstripeFirst.hits(chipFirst))
         val card = source("Card.kt", "fun pay() { reader.swipeCard() } // debt is not ebt here")
         assertEquals(emptyList<Any>(), EbtMagstripeFirst.hits(card))
+        val cardTypes = source(
+            "EbtCards.kt",
+            """
+            enum class EbtCardType {
+                MAGSTRIPE_ONLY,
+                CHIP,
+            }
+            enum class EbtScenario(val label: String) { EBT_MAGSTRIPE_CARD("x"), EBT_OTHER("y") }
+            fun prompt() = show("Swipe card") // string text is not an action
+            """,
+        )
+        assertEquals(emptyList<Any>(), EbtMagstripeFirst.hits(cardTypes))
     }
 }

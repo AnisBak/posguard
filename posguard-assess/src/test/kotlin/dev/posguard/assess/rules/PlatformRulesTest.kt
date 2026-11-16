@@ -46,6 +46,8 @@ class PlatformRulesTest {
         )
         val hits = DeprecatedAndroidApi.hits(file)
         assertEquals(listOf(2, 5, 4, 6), hits.map { it.line })
+        val mention = source("Docs.kt", "val note = \"AsyncTask and SafetyNet are deprecated\"")
+        assertEquals(emptyList<Any>(), DeprecatedAndroidApi.hits(mention))
     }
 
     @Test

@@ -83,8 +83,8 @@ internal object EbtMagstripeFirst : AssessRule {
     override val whyItMatters =
         "Magnetic stripes are what skimmers copy. USDA's proposed SNAP EBT card security rule (91 FR 66958) would not " +
             "permit a magstripe transaction until at least one chip attempt has failed. A checkout that swipes first " +
-            "keeps the skimmable path open. Heuristic: in files that mention EBT, magstripe or swipe appears before any chip " +
-            "or tap reference."
+            "keeps the skimmable path open. Heuristic: in files that mention EBT, a magstripe or swipe action (a call, " +
+            "member access, or entry in a list) appears before any chip or tap reference. String text is ignored."
     override val howToFix =
         "Prompt chip (insert or tap) first and offer magstripe only after a failed chip attempt or when the card or " +
             "reader can't use the chip. posguard-ebt's EbtEntryFlow enforces this order and records why each fallback happened."
@@ -93,12 +93,28 @@ internal object EbtMagstripeFirst : AssessRule {
     private val MAG_WORDS = setOf("swipe", "swiped", "swiping", "magstripe", "msr")
     private val CHIP_WORDS = setOf("chip", "emv", "insert", "icc", "contactless", "tap", "nfc")
 
-    private fun firstWord(lines: List<String>, isMatch: (List<String>) -> Boolean): Pair<Int, Int>? {
+    private val IDENT = Regex("""[A-Za-z_][A-Za-z0-9_]*""")
+    private val LIST_OPEN = Regex("""\b(?:listOf|mutableListOf|arrayOf|setOf|linkedSetOf|Arrays\.asList|List\.of)\s*\(""")
+
+    private fun isMag(words: List<String>) = words.any { it in MAG_WORDS } || words.zipWithNext().any { it == "mag" to "stripe" }
+
+    private val CONSTANT = Regex("""[A-Z][A-Z0-9_]*""")
+
+    /**
+     * A magstripe identifier used as an action: called, dereferenced, or listed (an entry order). Constants
+     * (`MAGSTRIPE`, `EBT_MAGSTRIPE_CARD("...")`) count only inside a list, so enum declarations don't.
+     */
+    private fun isAction(line: String, m: MatchResult): Boolean {
+        val next = line.substring(m.range.last + 1).trimStart().firstOrNull()
+        if ((next == '(' || next == '.') && !CONSTANT.matches(m.value)) return true
+        val listStart = LIST_OPEN.find(line)?.range?.first ?: return false
+        return listStart < m.range.first
+    }
+
+    /** (line index, column) of the first identifier in [lines] matching [accept]. */
+    private fun first(lines: List<String>, accept: (String, MatchResult) -> Boolean): Pair<Int, Int>? {
         lines.forEachIndexed { index, line ->
-            Regex("""[A-Za-z_][A-Za-z0-9_]*""").findAll(line).forEach { m ->
-                val w = Heuristics.words(m.value)
-                if (isMatch(w)) return index to m.range.first
-            }
+            IDENT.findAll(line).forEach { m -> if (accept(line, m)) return index to m.range.first }
         }
         return null
     }
@@ -106,9 +122,9 @@ internal object EbtMagstripeFirst : AssessRule {
     override fun check(context: RuleContext): List<RuleHit> = context.project.codeFiles
         .filter { it.containsCode(EBT) }
         .mapNotNull { file ->
-            val mag = firstWord(file.code) { w -> w.any { it in MAG_WORDS } || w.zipWithNext().any { it == "mag" to "stripe" } }
-                ?: return@mapNotNull null
-            val chip = firstWord(file.code) { w -> w.any { it in CHIP_WORDS } }
+            val code = file.code.map(Heuristics::withoutStrings)
+            val mag = first(code) { line, m -> isMag(Heuristics.words(m.value)) && isAction(line, m) } ?: return@mapNotNull null
+            val chip = first(code) { _, m -> Heuristics.words(m.value).any { it in CHIP_WORDS } }
             if (chip != null && compareValuesBy(chip, mag, { it.first }, { it.second }) < 0) return@mapNotNull null
             RuleHit(file.path, mag.first + 1, "Magstripe or swipe appears before any chip or tap step in this EBT code.")
         }

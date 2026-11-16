@@ -74,7 +74,9 @@ internal object DeprecatedAndroidApi : AssessRule {
 
     override fun check(context: RuleContext): List<RuleHit> = context.project.codeFiles.flatMap { file ->
         APIS.mapNotNull { (regex, name, note) ->
-            val index = file.code.indexOfFirst { line -> regex.containsMatchIn(line) && !line.trimStart().startsWith("import ") }
+            val index = file.code.indexOfFirst { line ->
+                !line.trimStart().startsWith("import ") && regex.containsMatchIn(Heuristics.withoutStrings(line))
+            }
             if (index < 0) null else RuleHit(file.path, index + 1, "$name: $note.")
         }
     }
