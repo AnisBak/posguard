@@ -6,7 +6,7 @@ posguard is an open-source Android toolkit that helps payment-app makers keep ca
 
 **posguard wraps the certified payment engine. It never replaces it.** Card reading, EMV processing, PIN handling, and card-data encryption stay inside certified payment SDKs and hardware. posguard protects the merchant app around them:
 
-- **EBT readiness (simulator):** chip-first EBT checkout with safe fallback, SNAP-eligible basket split from config, split tender, partial approvals, and receipt fields, for USDA's proposed chip-and-tap EBT requirement. PINs and card reading stay inside the certified engine.
+- **Secure EBT acceptance (simulator):** a layer an existing POS app adds around its certified engine, for USDA's proposed chip-and-tap EBT requirement. It enforces chip-first entry (magstripe, the skimmable path, only after a failed chip attempt, and never key entry), records why every fallback happened, keeps each SNAP, EBT cash, and card leg outage-safe in the ledger, and keeps balances off the POS screen and out of telemetry. Supporting helpers split SNAP-eligible items from config and build receipt fields. No screens: the app keeps its own UI. PINs and card reading stay inside the certified engine.
 - **Phone-terminal integrity:** device, app, and screen checks (overlays, screen capture, risky accessibility services, root, emulator, debugger) before payment acceptance opens.
 - **Relay-risk flags (experimental):** rules on engine-reported tap metadata, such as a burst of phone-wallet taps, that hold an approved payment for the merchant's review. Never a decline.
 - **Outage-safe transaction journal:** a payment is never lost and never charged twice, even if the app crashes or the network drops mid-payment.

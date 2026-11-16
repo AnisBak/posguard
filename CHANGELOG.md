@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+- Docs: `posguard-ebt` is described as a security and reliability layer for existing POS apps (chip-first enforcement, explained fallbacks, outage-safe legs, private balances), with basket split, tender planning, and receipts as supporting helpers. No code changes.
+
+### Fixed
+- `docs/ebt.md`: the proposed rule's issuing agency is USDA's Food and Nutrition Administration (FNA).
+
 ## [0.2.0] - 2026-11-15
 
 EBT readiness (simulator) and Milestone 2. Release notes: [docs/releases/v0.2.0.md](docs/releases/v0.2.0.md).

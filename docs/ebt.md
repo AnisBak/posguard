@@ -6,9 +6,18 @@
 
 SNAP benefits are paid on EBT cards. Most are still magnetic-stripe-only (the proposed rule notes that seven States had issued EBT chip cards as of August 2026), and skimming them is a well-known theft: USDA reports at least **$360 million** in stolen benefits replaced through the second quarter of fiscal year 2025 (753,929 approved claims, $360,441,561 in total replacement value).
 
-On October 23, 2026, USDA's Food and Nutrition Service proposed **"Supplemental Nutrition Assistance Program: Electronic Benefits Transfer Card Security Measures"** (RIN 0584-AE99, 91 FR 66958, document 2026-21658). Comments close **December 22, 2026**. Among other things, it would require States to issue chip cards that also work by tap (NFC) and require SNAP retailers to accept them. Retailers pay for their own POS equipment.
+On October 23, 2026, USDA's Food and Nutrition Administration (FNA) proposed **"Supplemental Nutrition Assistance Program: Electronic Benefits Transfer Card Security Measures"** (RIN 0584-AE99, 91 FR 66958, document 2026-21658). Comments close **December 22, 2026**. Among other things, it would require States to issue chip cards that also work by tap (NFC) and require SNAP retailers to accept them. Retailers pay for their own POS equipment.
 
-Small retailers and the developers of their POS apps need checkout flows that handle chip-first entry with fallback, split tender, partial approvals, and the receipt rules, without breaking during outages. posguard provides those flows around the certified engine, and a simulator to build and demo them against.
+Chip cards only stop skimming if the POS app actually uses the chip. A checkout that drops to swipe too early, or that a thief can push into swiping by damaging the chip, keeps the skimmable path open. Small retailers' existing POS apps also have to add EBT without losing or double-charging a leg during an outage, and without showing balances on screen.
+
+`posguard-ebt` is a **security and reliability layer** an existing Android POS app adds around its certified engine. It has no screens: the app keeps its own UI and engine, and posguard decides what to prompt next, records why, and journals every leg. The core guarantees:
+
+1. **Chip first, enforced.** Magstripe is offered only after a failed chip attempt (or when the card or reader can't use the chip). Config that puts magstripe anywhere but last is rejected. There is no key entry.
+2. **Every fallback is explained.** Each fallback emits an event with its reason, so merchants and their tools can see which terminals fall back and why.
+3. **No lost or doubled legs.** SNAP, EBT cash, and card legs are separate ledger transactions with their own idempotency keys and the same crash and outage recovery as card payments, including partial approvals.
+4. **Balances stay private.** They go on the customer receipt only, never on the POS screen or in telemetry.
+
+Supporting helpers (basket split from your eligibility config, tender planning, receipt fields) save integrators work, but the guarantees above are the point. `ebt-simulator` lets you build and demo all of it without real cards.
 
 ### What the proposed rule says (verified against the published text)
 
@@ -33,12 +42,12 @@ Source: [Federal Register document 2026-21658](https://www.federalregister.gov/d
 
 | posguard does | posguard doesn't |
 |---|---|
-| Split a basket into SNAP-eligible and other items, from your config | Decide what is eligible (federal rules, state restrictions, and your catalog do) |
-| Plan legs: SNAP, then EBT cash or card for the rest | Process payments or talk to EBT processors |
 | Decide the next card-entry prompt (chip first, fallback) and record why | Read cards, or offer key entry (that would mean handling the card number) |
 | Run each leg through the outage-safe ledger with its own idempotency key | Collect, see, or store PINs |
 | Record partial approvals, emit fallback and partial-approval events | Show balances on the POS screen or send them to telemetry |
-| Build receipt fields | Certify anything. Check your state's EBT processor spec. |
+| Helper: split a basket into SNAP-eligible and other items, from your config | Decide what is eligible (federal rules, state restrictions, and your catalog do) |
+| Helper: plan legs (SNAP, then EBT cash or card for the rest) | Process payments or talk to EBT processors |
+| Helper: build receipt fields | Detect physical skimmers, or certify anything. Check your state's EBT processor spec. |
 
 ## Wiring
 
