@@ -9,7 +9,7 @@ description = "posguard assessment: scans an Android POS codebase and reports pr
 
 application {
     applicationName = "posguard-assess"
-    mainClass.set("dev.posguard.assess.cli.MainKt")
+    mainClass.set("dev.posguard.assess.cli.CliKt")
 }
 
 // `./gradlew :posguard-assess:run --args="<path>"` resolves paths from the repository root.
